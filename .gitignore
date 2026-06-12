@@ -1,0 +1,49 @@
+# Gradle and Android build outputs
+.gradle/
+build/
+**/build/
+.externalNativeBuild/
+.cxx/
+captures/
+out/
+
+# Local SDK and machine-specific files
+local.properties
+*.local
+
+# Android Studio / IntelliJ local state
+.idea/
+*.iml
+
+# Kotlin local caches and compiler diagnostics
+.kotlin/
+
+# Generated app packages and bytecode
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+# Logs, crash dumps, and profiling artifacts
+*.log
+hs_err_pid*
+replay_pid*
+*.hprof
+
+# Signing keys and secrets
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+.env
+.env.*
+!.env.example
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local AI/tooling state
+.claude/
