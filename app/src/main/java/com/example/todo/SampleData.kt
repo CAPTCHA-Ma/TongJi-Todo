@@ -14,6 +14,9 @@ import java.time.LocalDate
  * so the originals stay pristine and can be reused on recomposition.
  */
 object SampleData {
+    val deprecatedDefaultScheduleIds: Set<String> = setOf("s1", "s2", "s3", "s4")
+    val deprecatedDefaultTaskIds: Set<String> = setOf("t1", "t2", "t3")
+
     private val today: LocalDate = LocalDate.now()
     private val tomorrow: LocalDate = today.plusDays(1)
 

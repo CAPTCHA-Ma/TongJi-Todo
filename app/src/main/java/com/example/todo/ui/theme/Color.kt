@@ -23,3 +23,11 @@ val Pink80 = Color(0xFFEFB8C8)
 val Purple40 = Color(0xFF6650a4)
 val PurpleGrey40 = Color(0xFF625b71)
 val Pink40 = Color(0xFF7D5260)
+
+// Tongji-inspired palette
+val TongjiBlue = Color(0xFF145DA0)
+val InkBlue = Color(0xFF0B2740)
+val CampusMint = Color(0xFFB9E4D6)
+val CampusAmber = Color(0xFFFFC857)
+val PlannerPaper = Color(0xFFFFFCF4)
+val PlannerLine = Color(0xFFE4E1D6)

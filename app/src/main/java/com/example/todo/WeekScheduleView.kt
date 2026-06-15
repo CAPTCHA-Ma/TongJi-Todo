@@ -811,15 +811,8 @@ private fun Schedule.weekEndMinutesForDay(): Int {
     return if (end <= start) (start + 60).coerceAtMost(24 * 60) else end
 }
 
-private fun LocalDate.weekdayLabel(): String = when (dayOfWeek) {
-    DayOfWeek.MONDAY -> "MON"
-    DayOfWeek.TUESDAY -> "TUE"
-    DayOfWeek.WEDNESDAY -> "WED"
-    DayOfWeek.THURSDAY -> "THU"
-    DayOfWeek.FRIDAY -> "FRI"
-    DayOfWeek.SATURDAY -> "SAT"
-    DayOfWeek.SUNDAY -> "SUN"
-}
+private fun LocalDate.weekdayLabel(): String =
+    dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH).uppercase()
 
 private fun LocalDate.weekStartDate(): LocalDate =
     with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))

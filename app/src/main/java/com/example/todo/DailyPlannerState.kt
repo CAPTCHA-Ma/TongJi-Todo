@@ -21,12 +21,7 @@ class DailyPlannerState(
     // ── schedule & task data ──────────────────────────────────────
 
     private val baseDate: LocalDate = LocalDate.now()
-    private var itemStore by mutableStateOf(
-        persistence?.load() ?: PlannerItemStore.from(
-            schedules = SampleData.defaultSchedules,
-            tasks = SampleData.defaultTasks
-        )
-    )
+    private var itemStore by mutableStateOf(loadInitialStore())
     private var storeVersion by mutableIntStateOf(0)
 
     init {
@@ -67,6 +62,9 @@ class DailyPlannerState(
     var createItemType by mutableStateOf(CreateItemType.Schedule)
         private set
 
+    /** Whether the Tongji timetable import WebView flow is open. */
+    var isTongjiImportOpen by mutableStateOf(false)
+
     // ── day navigation ────────────────────────────────────────────
 
     /** 0 = today, 1 = tomorrow, 2 = day after tomorrow */
@@ -88,13 +86,10 @@ class DailyPlannerState(
 
     /** Pre-computed formatted date labels for the three-day window. */
     val dateLabels: List<String> = run {
-        val months = arrayOf(
-            "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
-            "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"
-        )
+        val formatter = java.time.format.DateTimeFormatter.ofPattern("MMMdd", java.util.Locale.ENGLISH)
         (0..2).map { offset ->
             val date = baseDate.plusDays(offset.toLong())
-            months[date.monthValue - 1] + date.dayOfMonth.toString().padStart(2, '0')
+            formatter.format(date).uppercase()
         }
     }
 
@@ -133,6 +128,20 @@ class DailyPlannerState(
         selectedItem = null
     }
 
+    fun openTongjiImport() {
+        isTongjiImportOpen = true
+    }
+
+    fun closeTongjiImport() {
+        isTongjiImportOpen = false
+    }
+
+    fun importTongjiCourseSchedules(schedules: List<Schedule>) {
+        if (schedules.isNotEmpty()) {
+            updateStore(itemStore.replaceTongjiCourseSchedules(schedules))
+        }
+    }
+
     fun addSchedule(schedule: Schedule) {
         updateStore(itemStore.addSchedule(schedule))
     }
@@ -156,10 +165,33 @@ class DailyPlannerState(
         }
     }
 
+    fun currentStoreSnapshot(): PlannerItemStore = itemStore
+
+    fun applyCanvasSyncedStore(nextStore: PlannerItemStore) {
+        updateStore(nextStore)
+    }
+
     private fun updateStore(nextStore: PlannerItemStore) {
         itemStore = nextStore
         storeVersion++
         persistence?.save(nextStore)
         reminderScheduler?.sync(nextStore)
+    }
+
+    private fun loadInitialStore(): PlannerItemStore {
+        val loadedStore = persistence?.load()
+        val store = loadedStore ?: PlannerItemStore.from(
+            schedules = SampleData.defaultSchedules,
+            tasks = SampleData.defaultTasks
+        )
+        val cleanedStore = store
+            .deleteSchedules(SampleData.deprecatedDefaultScheduleIds)
+            .deleteTasks(SampleData.deprecatedDefaultTaskIds)
+
+        if (loadedStore != null && cleanedStore != loadedStore) {
+            persistence?.save(cleanedStore)
+        }
+
+        return cleanedStore
     }
 }

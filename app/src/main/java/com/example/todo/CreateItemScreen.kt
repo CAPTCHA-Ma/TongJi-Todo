@@ -80,12 +80,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import com.example.todo.ui.theme.BeigeBackground
 import com.example.todo.ui.theme.SoftBlue
 import com.example.todo.ui.theme.SoftLavender
 import com.example.todo.ui.theme.SoftPeach
 import com.example.todo.ui.theme.SoftRose
 import com.example.todo.ui.theme.SoftSage
+import androidx.compose.ui.res.stringResource
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -96,15 +98,33 @@ enum class CreateItemType {
     Task
 }
 
-private enum class CreateTimeField(
-    val title: String,
-    val nullLabel: String
-) {
-    Year("Year", "Every year"),
-    Month("Month", "Every month"),
-    Day("Day", "Every day"),
-    Hour("Hour", "Every hour"),
-    Minute("Minute", "Every minute")
+private enum class CreateTimeField { Year, Month, Day, Hour, Minute }
+
+@Composable
+private fun CreateTimeField.title(): String = when (this) {
+    CreateTimeField.Year -> stringResource(R.string.time_year)
+    CreateTimeField.Month -> stringResource(R.string.time_month)
+    CreateTimeField.Day -> stringResource(R.string.time_day)
+    CreateTimeField.Hour -> stringResource(R.string.time_hour)
+    CreateTimeField.Minute -> stringResource(R.string.time_minute)
+}
+
+@Composable
+private fun CreateTimeField.shortTitle(): String = when (this) {
+    CreateTimeField.Year -> stringResource(R.string.time_year).take(3)
+    CreateTimeField.Month -> stringResource(R.string.time_month).take(3)
+    CreateTimeField.Day -> stringResource(R.string.time_day).take(3)
+    CreateTimeField.Hour -> stringResource(R.string.time_hour).take(3)
+    CreateTimeField.Minute -> stringResource(R.string.time_minute).take(3)
+}
+
+@Composable
+private fun CreateTimeField.nullLabel(): String = when (this) {
+    CreateTimeField.Year -> stringResource(R.string.time_every_year)
+    CreateTimeField.Month -> stringResource(R.string.time_every_month)
+    CreateTimeField.Day -> stringResource(R.string.time_every_day)
+    CreateTimeField.Hour -> stringResource(R.string.time_every_hour)
+    CreateTimeField.Minute -> stringResource(R.string.time_every_minute)
 }
 
 private data class DetailDraft(
@@ -135,6 +155,7 @@ fun CreateItemScreen(
     onCreateTask: (Task) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val res = LocalContext.current.resources
     val now = remember(initialDate) { LocalDateTime.of(initialDate, LocalTime.now()) }
     val defaultTime = remember(now) { now.toFlexibleDateTime() }
     val details = remember { mutableStateListOf<DetailDraft>() }
@@ -160,7 +181,7 @@ fun CreateItemScreen(
 
     fun save() {
         val cleanedTitle = title.trim().ifEmpty {
-            if (selectedType == CreateItemType.Schedule) "New Schedule" else "New Task"
+            if (selectedType == CreateItemType.Schedule) res.getString(R.string.new_schedule) else res.getString(R.string.new_task)
         }
         val cleanedDetails = sanitizeDetails()
         val createdReminders = reminders.map { Reminder(time = it.time, enabled = true) }
@@ -1157,7 +1178,7 @@ private fun TimeFieldTabs(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = field.title.take(3),
+                    text = field.shortTitle(),
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Black,
                     color = contentColor,
@@ -1187,8 +1208,8 @@ private fun TimeOptionList(
     ) {
         item(key = "null") {
             TimeOptionRow(
-                label = field.nullLabel,
-                secondary = "Any",
+                label = field.nullLabel(),
+                secondary = stringResource(R.string.label_any),
                 selected = selectedValue == null,
                 onClick = { onSelect(null) }
             )
@@ -1196,7 +1217,7 @@ private fun TimeOptionList(
         items(options, key = { it }) { option ->
             TimeOptionRow(
                 label = option.formatTimeOption(field),
-                secondary = field.title,
+                secondary = field.title(),
                 selected = selectedValue == option,
                 onClick = { onSelect(option) }
             )
@@ -1319,6 +1340,7 @@ private fun maxDayFor(year: Int?, month: Int?): Int {
     }
 }
 
+@Composable
 private fun Int.formatTimeOption(field: CreateTimeField): String = when (field) {
     CreateTimeField.Year -> "$this"
     CreateTimeField.Month -> monthName(this)
@@ -1327,25 +1349,22 @@ private fun Int.formatTimeOption(field: CreateTimeField): String = when (field) 
     CreateTimeField.Minute -> toString().padStart(2, '0')
 }
 
+@Composable
 private fun FlexibleDateTime.toCreatorSummary(): String {
     val date = listOf(
-        year?.toString() ?: "Any year",
-        month?.let(::monthName) ?: "Any month",
-        day?.toString()?.padStart(2, '0') ?: "Any day"
+        year?.toString() ?: stringResource(R.string.time_any_year),
+        month?.let { monthName(it) } ?: stringResource(R.string.time_any_month),
+        day?.toString()?.padStart(2, '0') ?: stringResource(R.string.time_any_day)
     ).joinToString(" ")
 
     val time = listOf(
-        hour?.toString()?.padStart(2, '0') ?: "Any hour",
-        minute?.toString()?.padStart(2, '0') ?: "Any minute"
+        hour?.toString()?.padStart(2, '0') ?: stringResource(R.string.time_any_hour),
+        minute?.toString()?.padStart(2, '0') ?: stringResource(R.string.time_any_minute)
     ).joinToString(":")
 
     return "$date / $time"
 }
 
-private fun monthName(month: Int): String {
-    val names = arrayOf(
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-    )
-    return names.getOrElse(month - 1) { month.toString() }
-}
+@Composable
+private fun monthName(month: Int): String =
+    java.time.Month.of(month).getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH)

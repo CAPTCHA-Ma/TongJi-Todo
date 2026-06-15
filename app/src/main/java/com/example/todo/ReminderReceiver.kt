@@ -18,8 +18,8 @@ class ReminderReceiver : BroadcastReceiver() {
         ReminderNotification.show(
             context = context.applicationContext,
             notificationId = notificationId,
-            title = title.ifBlank { "Reminder" },
-            body = body.ifBlank { "A reminder is due." }
+            title = title.ifBlank { context.getString(R.string.notification_reminder_title) },
+            body = body.ifBlank { context.getString(R.string.notification_reminder_body) }
         )
         PlannerReminderScheduler.syncFromStorage(context.applicationContext)
     }

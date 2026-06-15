@@ -1,3 +1,152 @@
 <resources>
+    <!-- App -->
     <string name="app_name">Todo</string>
+
+    <!-- Main screen -->
+    <string name="schedule_section">Schedule</string>
+    <string name="task_section">Recommended Tasks</string>
+    <string name="all_dates">ALL DATES</string>
+    <string name="add_item">Add item</string>
+
+    <!-- Create item screen -->
+    <string name="create_schedule">Create Schedule</string>
+    <string name="create_task">Create Task</string>
+    <string name="new_schedule">New Schedule</string>
+    <string name="new_task">New Task</string>
+    <string name="label_title">Title</string>
+    <string name="hint_schedule_title">Schedule title</string>
+    <string name="hint_task_title">Task title</string>
+    <string name="label_time">Time</string>
+    <string name="label_start">Start</string>
+    <string name="label_start_time">Start Time</string>
+    <string name="label_end">End</string>
+    <string name="label_end_time">End Time</string>
+    <string name="label_deadline">Deadline</string>
+    <string name="label_accent">Accent</string>
+    <string name="label_estimated_effort">Estimated Effort</string>
+    <string name="label_details">Details</string>
+    <string name="action_new">New</string>
+    <string name="empty_no_detail_fields">No detail fields</string>
+    <string name="label_reminders">Reminders</string>
+    <string name="empty_no_reminders">No reminders</string>
+    <string name="reminder_label">Reminder %1$d</string>
+    <string name="cd_close">Close</string>
+    <string name="cd_save">Save</string>
+    <string name="type_schedule">Schedule</string>
+    <string name="type_task">Task</string>
+    <string name="label_field">Field</string>
+    <string name="cd_remove_detail">Remove detail</string>
+    <string name="hint_head">Head</string>
+    <string name="hint_info">Info</string>
+    <string name="cd_remove_reminder">Remove reminder</string>
+    <string name="cd_done">Done</string>
+    <string name="label_any">Any</string>
+
+    <!-- Time field labels -->
+    <string name="time_year">Year</string>
+    <string name="time_month">Month</string>
+    <string name="time_day">Day</string>
+    <string name="time_hour">Hour</string>
+    <string name="time_minute">Minute</string>
+    <string name="time_every_year">Every year</string>
+    <string name="time_every_month">Every month</string>
+    <string name="time_every_day">Every day</string>
+    <string name="time_every_hour">Every hour</string>
+    <string name="time_every_minute">Every minute</string>
+    <string name="time_any_year">Any year</string>
+    <string name="time_any_month">Any month</string>
+    <string name="time_any_day">Any day</string>
+    <string name="time_any_hour">Any hour</string>
+    <string name="time_any_minute">Any minute</string>
+    <string name="time_any_time">Any time</string>
+
+    <!-- Detail card (Components.kt) -->
+    <string name="detail_deadline">Deadline</string>
+    <string name="detail_time">Time</string>
+    <string name="detail_details">Details</string>
+    <string name="detail_no_details">No details</string>
+    <string name="detail_reminders">Reminders</string>
+    <string name="detail_no_reminders">No reminders</string>
+    <string name="detail_enabled">Enabled</string>
+    <string name="detail_disabled">Disabled</string>
+    <string name="detail_delete">Delete</string>
+    <string name="detail_type_schedule">Schedule</string>
+    <string name="detail_type_task">Task</string>
+    <string name="detail_type_item">Item</string>
+
+    <!-- Schedule view -->
+    <string name="period_day">Day</string>
+    <string name="period_week">Week</string>
+    <string name="period_month">Month</string>
+    <string name="select_date">Select date</string>
+    <string name="label_select_date">Select Date</string>
+
+    <!-- Task list -->
+    <string name="task_list_title">Tasks</string>
+    <string name="empty_no_active_tasks">No active tasks</string>
+    <string name="empty_no_completed_tasks">No completed tasks</string>
+    <string name="cd_create_task">Create task</string>
+    <string name="label_completed">Completed</string>
+
+    <!-- More indicator -->
+    <string name="more_count">+%1$d</string>
+
+    <!-- Home FAB quick actions -->
+    <string name="home_menu_language">Language</string>
+    <string name="home_menu_timetable">Timetable</string>
+    <string name="home_menu_canvas">Canvas</string>
+
+    <!-- Month names (arrays) -->
+    <string-array name="month_names">
+        <item>Jan</item><item>Feb</item><item>Mar</item><item>Apr</item>
+        <item>May</item><item>Jun</item><item>Jul</item><item>Aug</item>
+        <item>Sep</item><item>Oct</item><item>Nov</item><item>Dec</item>
+    </string-array>
+    <string-array name="month_names_short">
+        <item>JAN</item><item>FEB</item><item>MAR</item><item>APR</item>
+        <item>MAY</item><item>JUN</item><item>JUL</item><item>AUG</item>
+        <item>SEP</item><item>OCT</item><item>NOV</item><item>DEC</item>
+    </string-array>
+
+    <!-- Weekday names (arrays) -->
+    <string-array name="weekday_short">
+        <item>MON</item><item>TUE</item><item>WED</item><item>THU</item>
+        <item>FRI</item><item>SAT</item><item>SUN</item>
+    </string-array>
+
+    <!-- Notification -->
+    <string name="notification_channel_name">Reminders</string>
+    <string name="notification_channel_desc">Task and schedule reminder notifications</string>
+    <string name="notification_reminder_title">Reminder</string>
+    <string name="notification_reminder_body">A reminder is due.</string>
+    <string name="notification_schedule_reminder">Schedule reminder</string>
+    <string name="notification_task_reminder">Task reminder</string>
+    <string name="notification_body_template">%1$s at %2$s</string>
+
+    <!-- Tongji timetable import -->
+    <string name="tongji_import_screen_title">Tongji Timetable Import</string>
+    <string name="tongji_open_page">Opening Tongji timetable page</string>
+    <string name="tongji_parsing">Parsing timetable…</string>
+    <string name="tongji_waiting">Waiting for timetable data</string>
+    <string name="tongji_empty_course_error">No courses with name, weekday, and sections were detected. Make sure you are on the graduate timetable page and try again.</string>
+    <string name="tongji_invalid_course_error">Courses were detected but valid weeks, weekdays, or sections are missing — could not create schedules.</string>
+    <string name="tongji_parse_failed_error">Failed to parse timetable. Refresh the page and try again.</string>
+    <string name="tongji_import_complete">Import complete</string>
+    <string name="tongji_reload_page">Reload timetable page</string>
+    <string name="tongji_login_then_import">After logging in, tap the import button at the bottom right</string>
+    <string name="tongji_local_only">Page data is parsed only on this device</string>
+    <string name="tongji_refresh">Refresh</string>
+    <string name="tongji_confirm_semester_start">Confirm Monday of Week 1</string>
+    <string name="tongji_cancel">Cancel</string>
+    <string name="tongji_import_action">Import</string>
+    <string name="tongji_previous_day">Previous day</string>
+    <string name="tongji_next_day">Next day</string>
+    <string name="tongji_done">Done</string>
+    <string name="tongji_cannot_import">Cannot import yet</string>
+    <string name="tongji_got_it">Got it</string>
+    <string name="tongji_import_button_text">Import Timetable</string>
+    <string name="tongji_import_button_cd">Import Tongji timetable</string>
+    <string name="tongji_recognized_courses">%1$d courses detected</string>
+    <string name="tongji_recognized_courses_need_start">%1$d courses detected. Confirm Monday of Week 1 before importing.</string>
+    <string name="tongji_saved_course_schedules">%1$d course schedules saved</string>
 </resources>

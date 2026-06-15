@@ -87,6 +87,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.example.todo.ui.theme.BeigeBackground
 import com.example.todo.ui.theme.TodoTheme
+import androidx.compose.ui.res.stringResource
 import java.time.LocalDate
 import java.time.YearMonth
 import kotlin.math.abs
@@ -95,17 +96,27 @@ import kotlin.math.sqrt
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
-private enum class SchedulePeriod(val label: String) {
-    Day("Day"),
-    Week("Week"),
-    Month("Month")
+private enum class SchedulePeriod { Day, Week, Month }
+
+private enum class ScheduleDateField { Year, Month, Day }
+
+@Composable
+private fun periodLabel(period: SchedulePeriod): String = when (period) {
+    SchedulePeriod.Day -> stringResource(R.string.period_day)
+    SchedulePeriod.Week -> stringResource(R.string.period_week)
+    SchedulePeriod.Month -> stringResource(R.string.period_month)
 }
 
-private enum class ScheduleDateField(val label: String) {
-    Year("Year"),
-    Month("Month"),
-    Day("Day")
+@Composable
+private fun dateFieldLabel(field: ScheduleDateField): String = when (field) {
+    ScheduleDateField.Year -> stringResource(R.string.time_year)
+    ScheduleDateField.Month -> stringResource(R.string.time_month)
+    ScheduleDateField.Day -> stringResource(R.string.time_day)
 }
+
+@Composable
+private fun dateFieldShortLabel(field: ScheduleDateField): String =
+    dateFieldLabel(field).take(3)
 
 private class ScheduleSwipeAnimationJobs {
     var rubberBackJob: Job? = null
@@ -290,7 +301,7 @@ private fun ScheduleTopBar(
         Spacer(modifier = Modifier.width(10.dp))
         IconPillButton(
             icon = Icons.Filled.Event,
-            contentDescription = "Select date",
+            contentDescription = stringResource(R.string.select_date),
             onClick = onDateClick
         )
         Spacer(modifier = Modifier.width(12.dp))
@@ -319,7 +330,7 @@ private fun ScheduleTopBar(
         }
         IconPillButton(
             icon = Icons.Filled.Close,
-            contentDescription = "Close",
+            contentDescription = stringResource(R.string.cd_close),
             onClick = onClose
         )
     }
@@ -338,7 +349,7 @@ private fun PeriodMenu(
             .zIndex(4f)
     ) {
         PeriodPill(
-            text = selectedPeriod.label,
+            text = periodLabel(selectedPeriod),
             selected = true,
             trailingIcon = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
             onClick = { onExpandedChange(!expanded) },
@@ -392,7 +403,7 @@ private fun BoxScope.PeriodDropdownOverlay(
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             SchedulePeriod.entries.filter { it != selectedPeriod }.forEach { period ->
                 PeriodPill(
-                    text = period.label,
+                    text = periodLabel(period),
                     selected = true,
                     onClick = { onPeriodChange(period) }
                 )
@@ -1090,7 +1101,7 @@ private fun DatePickerPanel(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Select Date",
+                        text = stringResource(R.string.label_select_date),
                         style = MaterialTheme.typography.headlineSmall.copy(
                             fontWeight = FontWeight.Black,
                             fontSize = 28.sp,
@@ -1121,7 +1132,7 @@ private fun DatePickerPanel(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Check,
-                        contentDescription = "Done",
+                        contentDescription = stringResource(R.string.cd_done),
                         tint = Color.White,
                         modifier = Modifier.size(23.dp)
                     )
@@ -1196,7 +1207,7 @@ private fun DateFieldTabs(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = field.label.take(3),
+                    text = dateFieldShortLabel(field),
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Black,
                     color = contentColor,
@@ -1227,7 +1238,7 @@ private fun DateOptionList(
         items(options, key = { it }) { option ->
             DateOptionRow(
                 label = option.formatDateOption(field),
-                secondary = field.label,
+                secondary = dateFieldLabel(field),
                 selected = selectedValue == option,
                 onClick = { onSelect(option) }
             )
@@ -1368,11 +1379,8 @@ private fun Schedule.cardTimeRange(): String {
 }
 
 private fun LocalDate.formatScheduleHeaderDate(): String {
-    val months = arrayOf(
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-    )
-    return "${months[monthValue - 1]} ${dayOfMonth.toString().padStart(2, '0')}, $year"
+    val formatter = java.time.format.DateTimeFormatter.ofPattern("MMM dd, yyyy", java.util.Locale.ENGLISH)
+    return formatter.format(this)
 }
 
 private fun LocalDate.valueFor(field: ScheduleDateField): Int = when (field) {
@@ -1401,10 +1409,8 @@ private fun buildDateOptions(field: ScheduleDateField, date: LocalDate): List<In
 
 private fun Int.formatDateOption(field: ScheduleDateField): String = when (field) {
     ScheduleDateField.Year -> "$this"
-    ScheduleDateField.Month -> arrayOf(
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-    ).getOrElse(this - 1) { toString() }
+    ScheduleDateField.Month -> java.time.Month.of(this)
+        .getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH)
     ScheduleDateField.Day -> toString().padStart(2, '0')
 }
 

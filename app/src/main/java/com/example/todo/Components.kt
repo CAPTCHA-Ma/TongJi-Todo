@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.example.todo.ui.theme.*
+import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -301,6 +302,8 @@ fun BaseCard(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
                 .align(Alignment.Center)
+                .fillMaxWidth()
+                .padding(horizontal = 88.dp)
         )
 
         // Right Slot
@@ -745,9 +748,10 @@ fun TaskCard(
                         )
                     },
                     rightContent = {
-                        val deadlineReached = task.hasReachedDeadline()
+                        val isCourseTask = task.isTongjiCourseTask()
+                        val deadlineReached = !isCourseTask && task.hasReachedDeadline()
                         Text(
-                            text = task.deadline.toSmartString().ifEmpty { "—" },
+                            text = if (isCourseTask) TongjiCourseType else task.deadline.toSmartString().ifEmpty { "—" },
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = when {
@@ -795,7 +799,11 @@ fun DetailPreview(
     var isDismissing by remember { mutableStateOf(false) }
     var deleteOnDismiss by remember { mutableStateOf(false) }
     val title = item.detailTitle()
-    val typeLabel = item.detailTypeLabel()
+    val typeLabel = when (item) {
+        is Schedule -> stringResource(R.string.detail_type_schedule)
+        is Task -> stringResource(R.string.detail_type_task)
+        else -> stringResource(R.string.detail_type_item)
+    }
     val accentColor = item.detailColor()
     val timeSummary = remember(item) { item.detailTimeSummary() }
     val description = item.detailDescription()
@@ -1031,29 +1039,29 @@ fun DetailPreview(
                     Spacer(modifier = Modifier.height(18.dp))
 
                     DetailTimeBlock(
-                        title = if (item is Task) "Deadline" else "Time",
+                        title = if (item is Task) stringResource(R.string.detail_deadline) else stringResource(R.string.detail_time),
                         summary = timeSummary,
                         accentColor = accentColor
                     )
 
                     DetailSection(
-                        title = "Details",
-                        emptyText = "No details",
+                        title = stringResource(R.string.detail_details),
+                        emptyText = stringResource(R.string.detail_no_details),
                         rows = description.map { it.head to it.info }
                     )
 
                     DetailSection(
-                        title = "Reminders",
-                        emptyText = "No reminders",
+                        title = stringResource(R.string.detail_reminders),
+                        emptyText = stringResource(R.string.detail_no_reminders),
                         rows = reminders.mapIndexed { index, reminder ->
                             val reminderSummary = reminder.time.toDetailTaskTimeSummary()
-                            val status = if (reminder.enabled) "Enabled" else "Disabled"
+                            val status = if (reminder.enabled) stringResource(R.string.detail_enabled) else stringResource(R.string.detail_disabled)
                             val value = listOf(
                                 reminderSummary.primary,
                                 reminderSummary.secondary,
                                 status
                             ).filter { it.isNotBlank() }.joinToString(" / ")
-                            "Reminder ${index + 1}" to value
+                            stringResource(R.string.reminder_label, index + 1) to value
                         }
                     )
 
@@ -1226,7 +1234,7 @@ private fun DeleteConfirmationButton(
         ) {
             Icon(
                 imageVector = Icons.Filled.Delete,
-                contentDescription = "Delete",
+                contentDescription = stringResource(R.string.detail_delete),
                 tint = Color.White,
                 modifier = Modifier.size(20.dp)
             )
@@ -1379,8 +1387,8 @@ private fun Any.detailTitle(): String = when (this) {
 }
 
 private fun Any.detailTypeLabel(): String = when (this) {
-    is Schedule -> "Schedule"
-    is Task -> "Task"
+    is Schedule -> if (isTongjiCourseSchedule()) TongjiCourseType else "Schedule"
+    is Task -> if (isTongjiCourseTask()) TongjiCourseType else "Task"
     else -> "Item"
 }
 

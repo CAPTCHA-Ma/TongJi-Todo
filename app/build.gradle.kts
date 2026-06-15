@@ -1,3 +1,7 @@
+import org.gradle.api.tasks.Sync
+import org.gradle.api.tasks.testing.Test
+import java.io.File
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -54,4 +58,26 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
+}
+
+val debugUnitTestClassesRoot = File(System.getProperty("java.io.tmpdir"), "tongji-todo-unit-test-classes/debug")
+val syncDebugKotlinClassesForUnitTest by tasks.registering(Sync::class) {
+    dependsOn("compileDebugKotlin", "compileDebugUnitTestKotlin")
+    from(layout.buildDirectory.dir("intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes")) {
+        into("main")
+    }
+    from(layout.buildDirectory.dir("intermediates/built_in_kotlinc/debugUnitTest/compileDebugUnitTestKotlin/classes")) {
+        into("test")
+    }
+    into(debugUnitTestClassesRoot)
+}
+
+afterEvaluate {
+    tasks.named<Test>("testDebugUnitTest") {
+        dependsOn(syncDebugKotlinClassesForUnitTest)
+        val asciiMainClasses = File(debugUnitTestClassesRoot, "main")
+        val asciiTestClasses = File(debugUnitTestClassesRoot, "test")
+        testClassesDirs = files(asciiTestClasses)
+        classpath = files(asciiMainClasses, asciiTestClasses).plus(classpath)
+    }
 }

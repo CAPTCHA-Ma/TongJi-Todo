@@ -67,6 +67,31 @@ data class PlannerItemStore(
     fun deleteTask(taskId: String): PlannerItemStore =
         withoutTask(taskId)
 
+    fun addSchedules(schedules: List<Schedule>): PlannerItemStore =
+        schedules.fold(this) { store, schedule -> store.addSchedule(schedule) }
+
+    fun deleteSchedules(scheduleIds: Set<String>): PlannerItemStore =
+        scheduleIds.fold(this) { store, id -> store.deleteSchedule(id) }
+
+    fun deleteTasks(taskIds: Set<String>): PlannerItemStore =
+        taskIds.fold(this) { store, id -> store.deleteTask(id) }
+
+    fun replaceTongjiCourseSchedules(schedules: List<Schedule>): PlannerItemStore =
+        withoutTongjiCourseItems().let { store ->
+            schedules.fold(store) { currentStore, schedule -> currentStore.addSchedule(schedule) }
+        }
+
+    fun upsertCanvasAssignmentTasks(tasks: List<Task>): PlannerItemStore =
+        tasks.fold(this) { store, task ->
+            val existing = store.storedTasks().firstOrNull { it.id == task.id }
+            val mergedTask = if (existing == null) {
+                task
+            } else {
+                task.copy(isCompleted = existing.isCompleted || task.isCompleted)
+            }
+            store.addTask(mergedTask)
+        }
+
     fun completeTask(taskId: String): PlannerItemStore =
         updateTask(taskId) { it.copy(isCompleted = true) }
 
@@ -80,6 +105,18 @@ data class PlannerItemStore(
     fun storedTasks(): List<Task> =
         (taskBuckets.values.flatten() + floatingTasks)
             .distinctBy { it.id }
+
+    private fun withoutTongjiCourseItems(): PlannerItemStore {
+        val tongjiScheduleIds = storedSchedules()
+            .filter { it.isTongjiCourseSchedule() }
+            .map { it.id }
+            .toSet()
+        val tongjiTaskIds = storedTasks()
+            .filter { it.isTongjiCourseTask() }
+            .map { it.id }
+            .toSet()
+        return deleteSchedules(tongjiScheduleIds).deleteTasks(tongjiTaskIds)
+    }
 
     private fun insertSchedule(schedule: Schedule): PlannerItemStore {
         val dates = schedule.storageDates()

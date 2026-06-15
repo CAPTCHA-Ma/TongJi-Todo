@@ -1,5 +1,11 @@
 package com.example.todo
 
+import android.content.Context
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -16,13 +22,24 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,16 +48,22 @@ import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.example.todo.ui.theme.*
+import androidx.compose.ui.res.stringResource
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * Multi-day planner screen that displays schedules and recommended tasks
@@ -65,7 +88,8 @@ fun DailyPlannerScreen() {
             reminderScheduler = if (isPreview) null else PlannerReminderScheduler(appContext)
         )
     }
-
+    var isFabMenuOpen by remember { mutableStateOf(false) }
+    var isCanvasSyncOpen by remember { mutableStateOf(false) }
     // ── adaptive card sizing ────────────────────────────────────────
 
     /** Returns the per-card height so that [count] cards plus their spacers
@@ -77,11 +101,23 @@ fun DailyPlannerScreen() {
         val isOverlayOpen = state.selectedItem != null ||
             state.isFullDayPreviewOpen ||
             state.isTaskPreviewOpen ||
-            state.isCreateItemOpen
+            state.isCreateItemOpen ||
+            isCanvasSyncOpen ||
+            state.isTongjiImportOpen
         val overlayBlurRadius by animateDpAsState(
-            targetValue = if (isOverlayOpen) 12.dp else 0.dp,
+            targetValue = if (isOverlayOpen || isFabMenuOpen) 12.dp else 0.dp,
             animationSpec = tween(durationMillis = 170, easing = FastOutSlowInEasing),
             label = "OverlayBlurRadius"
+        )
+        val fabMenuTintAlpha by animateFloatAsState(
+            targetValue = if (isFabMenuOpen && !isOverlayOpen) 0.28f else 0f,
+            animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing),
+            label = "FabMenuTintAlpha"
+        )
+        val fabMenuDepthAlpha by animateFloatAsState(
+            targetValue = if (isFabMenuOpen && !isOverlayOpen) 0.045f else 0f,
+            animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing),
+            label = "FabMenuDepthAlpha"
         )
         val overlayTintAlpha by animateFloatAsState(
             targetValue = if (isOverlayOpen) 0.34f else 0f,
@@ -126,6 +162,12 @@ fun DailyPlannerScreen() {
         val plannerCardSpacing = 8.dp
         val plannerCardHeight = ((maxHeight - 388.dp - plannerCardSpacing * 4f) / 6f)
             .coerceIn(66.dp, 72.dp)
+        BackHandler(enabled = isFabMenuOpen && !isOverlayOpen) {
+            isFabMenuOpen = false
+        }
+        LaunchedEffect(isOverlayOpen) {
+            if (isOverlayOpen) isFabMenuOpen = false
+        }
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
@@ -164,7 +206,7 @@ fun DailyPlannerScreen() {
                         }
                     }
             ) {
-                SectionTitle("Schedule")
+                SectionTitle(stringResource(R.string.schedule_section))
                 Spacer(modifier = Modifier.height(8.dp))
 
                 PlannerCardStack(
@@ -197,7 +239,7 @@ fun DailyPlannerScreen() {
                         }
                     }
             ) {
-                SectionTitle("Recommended Tasks")
+                SectionTitle(stringResource(R.string.task_section))
                 Spacer(modifier = Modifier.height(8.dp))
 
                 PlannerCardStack(
@@ -225,12 +267,65 @@ fun DailyPlannerScreen() {
 
             // White scrim — lifts brightness of the blurred content
             // so large dark text doesn't bleed through as muddy smudges.
+            if (fabMenuTintAlpha > 0.01f || fabMenuDepthAlpha > 0.005f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFFFFFBF0).copy(alpha = fabMenuTintAlpha))
+                        .clickable(
+                            interactionSource = null,
+                            indication = null,
+                            onClick = { isFabMenuOpen = false }
+                        )
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = fabMenuDepthAlpha))
+                        .clickable(
+                            interactionSource = null,
+                            indication = null,
+                            onClick = { isFabMenuOpen = false }
+                        )
+                )
+            }
+
+            FabQuickActionMenu(
+                visible = isFabMenuOpen && !isOverlayOpen,
+                onLanguageClick = {},
+                onTimetableClick = {
+                    isFabMenuOpen = false
+                    state.openTongjiImport()
+                },
+                onCanvasClick = {
+                    isFabMenuOpen = false
+                    isCanvasSyncOpen = true
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 86.dp)
+                    .zIndex(4f)
+            )
+
             AddItemFab(
-                onClick = { state.openCreateItem(CreateItemType.Schedule) },
+                vibrationContext = appContext,
+                menuOpen = isFabMenuOpen,
+                onClick = {
+                    if (isFabMenuOpen) {
+                        isFabMenuOpen = false
+                    } else {
+                        state.openCreateItem(CreateItemType.Schedule)
+                    }
+                },
+                onLongPress = {
+                    if (!isOverlayOpen) isFabMenuOpen = true
+                },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
                     .padding(bottom = 12.dp)
+                    .zIndex(5f)
             )
 
             if (overlayTintAlpha > 0.01f) {
@@ -248,6 +343,7 @@ fun DailyPlannerScreen() {
                         .background(Color.Black.copy(alpha = overlayDepthAlpha))
                 )
             }
+
         }
 
         // ── full-day preview overlay ──────────────────────────────
@@ -287,7 +383,8 @@ fun DailyPlannerScreen() {
             TaskListPreview(
                 activeTasks = state.allTasks,
                 completedTasks = state.allCompletedTasks,
-                dateLabel = "ALL DATES",
+                dateLabel = stringResource(R.string.all_dates),
+                currentDate = state.currentDate,
                 onClose = { state.isTaskPreviewOpen = false },
                 onTaskClick = { task -> state.selectItem(task) },
                 onCompleteTask = { task -> state.completeTask(task) },
@@ -345,6 +442,43 @@ fun DailyPlannerScreen() {
             )
         }
 
+        AnimatedVisibility(
+            visible = state.isTongjiImportOpen,
+            enter = slideInVertically(
+                animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                initialOffsetY = { it }
+            ) + fadeIn(tween(durationMillis = 120)),
+            exit = slideOutVertically(
+                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                targetOffsetY = { it }
+            ) + fadeOut(tween(durationMillis = 90)),
+            modifier = Modifier.zIndex(40f)
+        ) {
+            TongjiImportWebViewScreen(
+                onClose = state::closeTongjiImport,
+                onImportSchedules = state::importTongjiCourseSchedules
+            )
+        }
+
+        AnimatedVisibility(
+            visible = isCanvasSyncOpen,
+            enter = slideInVertically(
+                animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                initialOffsetY = { it }
+            ) + fadeIn(tween(durationMillis = 120)),
+            exit = slideOutVertically(
+                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                targetOffsetY = { it }
+            ) + fadeOut(tween(durationMillis = 90)),
+            modifier = Modifier.zIndex(38f)
+        ) {
+            CanvasSyncOverlay(
+                currentStore = state.currentStoreSnapshot(),
+                onSyncCompleted = { nextStore -> state.applyCanvasSyncedStore(nextStore) },
+                onClose = { isCanvasSyncOpen = false }
+            )
+        }
+
         // ── detail overlay ────────────────────────────────────────
         // AnimatedVisibility uses EnterTransition.None / ExitTransition.None
         // so DetailPreview can handle its own enter/exit animations via Animatable.
@@ -380,27 +514,303 @@ private fun SectionTitle(title: String) {
 }
 
 @Composable
-private fun AddItemFab(
+private fun FabQuickActionMenu(
+    visible: Boolean,
+    onLanguageClick: () -> Unit,
+    onTimetableClick: () -> Unit,
+    onCanvasClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = slideInVertically(
+            animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+            initialOffsetY = { it / 4 }
+        ) + fadeIn(tween(durationMillis = 120)),
+        exit = slideOutVertically(
+            animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
+            targetOffsetY = { it / 4 }
+        ) + fadeOut(tween(durationMillis = 90)),
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier.width(188.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            FabQuickActionButton(
+                label = stringResource(R.string.home_menu_language),
+                icon = Icons.Filled.Language,
+                onClick = onLanguageClick
+            )
+            FabQuickActionButton(
+                label = stringResource(R.string.home_menu_timetable),
+                icon = Icons.Filled.Event,
+                onClick = onTimetableClick
+            )
+            FabQuickActionButton(
+                label = stringResource(R.string.home_menu_canvas),
+                icon = Icons.Filled.CloudDownload,
+                onClick = onCanvasClick
+            )
+        }
+    }
+}
+
+@Composable
+private fun FabQuickActionButton(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(
+    Row(
         modifier = modifier
-            .size(62.dp)
-            .background(Color.Black, shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp))
+            .fillMaxWidth()
+            .height(50.dp)
+            .border(2.dp, Color.Black.copy(alpha = 0.22f), RoundedCornerShape(25.dp))
+            .background(Color.Black, RoundedCornerShape(25.dp))
             .clickable(
                 interactionSource = null,
                 indication = null,
                 onClick = onClick
-            ),
+            )
+            .padding(start = 12.dp, end = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(30.dp)
+                .background(Color.White, RoundedCornerShape(999.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color.Black,
+                modifier = Modifier.size(17.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = Color.White,
+            fontWeight = FontWeight.Black,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun AddItemFab(
+    vibrationContext: Context,
+    onClick: () -> Unit,
+    onLongPress: () -> Unit,
+    modifier: Modifier = Modifier,
+    menuOpen: Boolean = false
+) {
+    val latestContext by rememberUpdatedState(vibrationContext)
+    val latestOnClick by rememberUpdatedState(onClick)
+    val latestOnLongPress by rememberUpdatedState(onLongPress)
+    val scope = rememberCoroutineScope()
+    var vibrationJob by remember { mutableStateOf<Job?>(null) }
+    var longPressJob by remember { mutableStateOf<Job?>(null) }
+    val iconRotation by animateFloatAsState(
+        targetValue = if (menuOpen) 45f else 0f,
+        animationSpec = tween(durationMillis = 170, easing = FastOutSlowInEasing),
+        label = "AddFabIconRotation"
+    )
+
+    DisposableEffect(Unit) {
+        onDispose {
+            vibrationJob?.cancel()
+            longPressJob?.cancel()
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .size(62.dp)
+            .background(Color.Black, shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp))
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    var longPressTriggered = false
+                    vibrationJob?.cancel()
+                    longPressJob?.cancel()
+                    vibrationJob = scope.launch {
+                        playFabLongPressRampVibration(latestContext)
+                    }
+                    longPressJob = scope.launch {
+                        delay(FabLongPressDelayMs)
+                        longPressTriggered = true
+                        vibrationJob?.cancel()
+                        vibrationJob = null
+                        playFabLongPressTriggerVibration(latestContext)
+                        latestOnLongPress()
+                    }
+
+                    do {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                    } while (event.changes.any { it.pressed })
+
+                    vibrationJob?.cancel()
+                    vibrationJob = null
+                    longPressJob?.cancel()
+                    longPressJob = null
+
+                    if (!longPressTriggered) {
+                        latestOnClick()
+                    }
+                }
+            },
         contentAlignment = Alignment.Center
     ) {
         Icon(
             imageVector = Icons.Filled.Add,
-            contentDescription = "Add item",
+            contentDescription = stringResource(R.string.add_item),
             tint = Color.White,
-            modifier = Modifier.size(30.dp)
+            modifier = Modifier
+                .size(30.dp)
+                .graphicsLayer { rotationZ = iconRotation }
         )
+    }
+}
+
+private const val FabLongPressDelayMs = 720L
+
+private suspend fun playFabLongPressRampVibration(context: Context) {
+    val pulses = listOf(
+        105L to 28,
+        105L to 46,
+        105L to 68,
+        105L to 94,
+        105L to 124,
+        105L to 158
+    )
+    pulses.forEach { (delayMs, amplitude) ->
+        delay(delayMs)
+        vibrateOneShot(context, durationMs = 10L, amplitude = amplitude)
+    }
+}
+
+private fun playFabLongPressTriggerVibration(context: Context) {
+    vibrateOneShot(context, durationMs = 34L, amplitude = 255)
+}
+
+@Suppress("DEPRECATION")
+private fun vibrateOneShot(
+    context: Context,
+    durationMs: Long,
+    amplitude: Int
+) {
+    val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        context.getSystemService(VibratorManager::class.java)?.defaultVibrator
+    } else {
+        context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+    } ?: return
+
+    if (!vibrator.hasVibrator()) return
+
+    vibrator.vibrate(
+        VibrationEffect.createOneShot(
+            durationMs,
+            amplitude.coerceIn(1, 255)
+        )
+    )
+}
+
+@Composable
+private fun CanvasSyncOverlay(
+    currentStore: PlannerItemStore,
+    onSyncCompleted: (PlannerItemStore) -> Unit,
+    onClose: () -> Unit
+) {
+    BackHandler(onBack = onClose)
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BeigeBackground)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .imePadding()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(76.dp)
+                .padding(horizontal = 18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .border(2.dp, Color.Black.copy(alpha = 0.32f), RoundedCornerShape(999.dp))
+                    .background(Color.White.copy(alpha = 0.46f), RoundedCornerShape(999.dp))
+                    .clickable(
+                        interactionSource = null,
+                        indication = null,
+                        onClick = onClose
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = stringResource(R.string.cd_close),
+                    tint = Color.Black,
+                    modifier = Modifier.size(23.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Canvas Sync",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontSize = 25.sp,
+                        lineHeight = 29.sp
+                    ),
+                    fontWeight = FontWeight.Black,
+                    color = Color.Black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "TOKEN AND ASSIGNMENTS",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Black,
+                    color = Color.Black.copy(alpha = 0.48f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Text(
+                text = if (currentStore.activeTasks().any { it.isCanvasAssignmentTask() }) "SYNCED" else "READY",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Black,
+                color = Color.White,
+                maxLines = 1,
+                modifier = Modifier
+                    .background(Color.Black, RoundedCornerShape(999.dp))
+                    .padding(horizontal = 12.dp, vertical = 7.dp)
+            )
+        }
+
+        val scrollState = rememberScrollState()
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(start = 20.dp, top = 4.dp, end = 20.dp)
+                .padding(bottom = 28.dp)
+        ) {
+            CanvasSyncSettingsPanel(
+                currentStore = currentStore,
+                onSyncCompleted = onSyncCompleted
+            )
+        }
     }
 }
 

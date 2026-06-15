@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.todo.ui.theme.BeigeBackground
+import androidx.compose.ui.res.stringResource
 import java.time.LocalDate
 import java.time.YearMonth
 import kotlin.math.abs
@@ -655,7 +656,7 @@ private fun MonthMoreCard(
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "+$moreCount",
+            text = stringResource(R.string.more_count, moreCount),
             style = MaterialTheme.typography.labelSmall.copy(
                 fontSize = 8.sp,
                 lineHeight = 9.sp

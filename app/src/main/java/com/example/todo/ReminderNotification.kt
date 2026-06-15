@@ -12,16 +12,15 @@ import android.os.Build
 
 object ReminderNotification {
     private const val ChannelId = "todo_reminders"
-    private const val ChannelName = "Reminders"
 
     fun ensureChannel(context: Context) {
         val notificationManager = context.getSystemService(NotificationManager::class.java) ?: return
         val channel = NotificationChannel(
             ChannelId,
-            ChannelName,
+            context.getString(R.string.notification_channel_name),
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "Task and schedule reminder notifications"
+            description = context.getString(R.string.notification_channel_desc)
             enableVibration(true)
         }
         notificationManager.createNotificationChannel(channel)

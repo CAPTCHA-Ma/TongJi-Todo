@@ -89,19 +89,26 @@ fun FlexibleDateTime.toTimeString(): String {
 }
 
 /**
- * Formats the full date/time for display, e.g. "6月4日 08:00".
+ * Formats the full date/time for display, e.g. "2026-06-04 08:00".
  * Skips any null portion gracefully.
  */
 fun FlexibleDateTime.toDisplayString(): String {
     val parts = mutableListOf<String>()
 
-    if (year != null) parts.add("${year}年")
-
-    val monthDay = buildString {
-        if (month != null) append("${month}月")
-        if (day != null) append("${day}日")
+    val datePortion = buildString {
+        if (year != null) {
+            append(year.toString().padStart(4, '0'))
+            if (month != null || day != null) append("-")
+        }
+        if (month != null) {
+            append(month.toString().padStart(2, '0'))
+            if (day != null) append("-")
+        }
+        if (day != null) {
+            append(day.toString().padStart(2, '0'))
+        }
     }
-    if (monthDay.isNotEmpty()) parts.add(monthDay)
+    if (datePortion.isNotEmpty()) parts.add(datePortion)
 
     val time = toTimeString()
     if (time.isNotEmpty()) parts.add(time)
@@ -114,18 +121,16 @@ fun FlexibleDateTime.toDisplayString(): String {
  * unit downward.  A `null` field is treated as a wildcard (always matches).
  *
  * Three display levels (highest differing wins):
- *   - Year differs       →  `"2027年"`
- *   - Month or day differs →  `"6月5日"`
+ *   - Year differs       →  `"2027"`
+ *   - Month or day differs →  `"06-05"`
  *   - Only time differs  →  `"17:04"`
  *
  * Examples with `now = 2026-06-04 19:03`:
  *   - `FlexibleDateTime(month=6, day=4, hour=17, minute=4)`  →  `"17:04"`
- *   - `FlexibleDateTime(month=6, day=5, hour=19, minute=3)`  →  `"6月5日"`
- *   - `FlexibleDateTime(year=2025, month=6, day=4)`          →  `"2025年"`
+ *   - `FlexibleDateTime(month=6, day=5, hour=19, minute=3)`  →  `"06-05"`
+ *   - `FlexibleDateTime(year=2025, month=6, day=4)`          →  `"2025"`
  */
 fun FlexibleDateTime.toSmartString(now: LocalDateTime = LocalDateTime.now()): String {
-    // Determine the first (largest) unit that differs from now.
-    // null fields never differ — they are wildcards.
     val yearDiff  = year   != null && year   != now.year
     val monthDiff = month  != null && month  != now.monthValue
     val dayDiff   = day    != null && day    != now.dayOfMonth
@@ -133,32 +138,27 @@ fun FlexibleDateTime.toSmartString(now: LocalDateTime = LocalDateTime.now()): St
     val minuteDiff = minute != null && minute != now.minute
 
     return when {
-        yearDiff -> {
-            // Year is the biggest difference → show only the year
-            "${year}年"
-        }
+        yearDiff -> "${year}"
         monthDiff -> {
-            // Month differs (year same) → show month + day
             buildString {
-                if (month != null) append("${month}月")
-                if (day != null) append("${day}日")
+                if (month != null) append(month.toString().padStart(2, '0'))
+                if (day != null) {
+                    append("-")
+                    append(day.toString().padStart(2, '0'))
+                }
             }
         }
         dayDiff -> {
-            // Day differs (year & month same) → show month + day
             buildString {
-                if (month != null) append("${month}月")
-                if (day != null) append("${day}日")
+                if (month != null) append(month.toString().padStart(2, '0'))
+                if (day != null) {
+                    append("-")
+                    append(day.toString().padStart(2, '0'))
+                }
             }
         }
-        hourDiff || minuteDiff -> {
-            // Only time portion differs → show HH:MM
-            toTimeString()
-        }
-        else -> {
-            // All specified fields match now (or are null) → still show time
-            toTimeString()
-        }
+        hourDiff || minuteDiff -> toTimeString()
+        else -> toTimeString()
     }
 }
 

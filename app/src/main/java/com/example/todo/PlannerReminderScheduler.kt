@@ -22,7 +22,7 @@ class PlannerReminderScheduler(
         ReminderNotification.ensureChannel(appContext)
         cancelScheduledAlarms()
 
-        val specs = store.reminderAlarmSpecs(LocalDateTime.now())
+        val specs = store.reminderAlarmSpecs(appContext, LocalDateTime.now())
         specs.forEach(::schedule)
 
         preferences.edit()
@@ -125,14 +125,15 @@ private data class ReminderAlarmSpec(
     val triggerAt: LocalDateTime
 )
 
-private fun PlannerItemStore.reminderAlarmSpecs(now: LocalDateTime): List<ReminderAlarmSpec> {
+private fun PlannerItemStore.reminderAlarmSpecs(context: Context, now: LocalDateTime): List<ReminderAlarmSpec> {
     val scheduleReminders = storedSchedules().flatMap { schedule ->
         schedule.reminders.mapIndexedNotNull { index, reminder ->
             reminder.toAlarmSpec(
+                context = context,
                 itemType = "schedule",
                 itemId = schedule.id,
                 reminderIndex = index,
-                fallbackTitle = "Schedule reminder",
+                fallbackTitle = context.getString(R.string.notification_schedule_reminder),
                 itemTitle = schedule.title,
                 now = now
             )
@@ -144,10 +145,11 @@ private fun PlannerItemStore.reminderAlarmSpecs(now: LocalDateTime): List<Remind
         .flatMap { task ->
             task.reminders.mapIndexedNotNull { index, reminder ->
                 reminder.toAlarmSpec(
+                    context = context,
                     itemType = "task",
                     itemId = task.id,
                     reminderIndex = index,
-                    fallbackTitle = "Task reminder",
+                    fallbackTitle = context.getString(R.string.notification_task_reminder),
                     itemTitle = task.title,
                     now = now
                 )
@@ -158,6 +160,7 @@ private fun PlannerItemStore.reminderAlarmSpecs(now: LocalDateTime): List<Remind
 }
 
 private fun Reminder.toAlarmSpec(
+    context: Context,
     itemType: String,
     itemId: String,
     reminderIndex: Int,
@@ -175,7 +178,7 @@ private fun Reminder.toAlarmSpec(
         key = key,
         notificationId = key.notificationId(),
         title = itemTitle.ifBlank { fallbackTitle },
-        body = "$fallbackTitle at $displayTime",
+        body = context.getString(R.string.notification_body_template, fallbackTitle, displayTime),
         triggerAt = triggerAt
     )
 }
