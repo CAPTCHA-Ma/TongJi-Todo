@@ -49,6 +49,12 @@ data class PlannerItemStore(
             .filter { it.isCompleted }
             .sortedForAllDates()
 
+    /** Returns the top [count] active tasks ranked by priority: cost / (daysUntilDeadline + 1). */
+    fun recommendedTasks(count: Int = 3): List<Task> =
+        activeTasks()
+            .sortedByDescending { it.cost.toDouble() / (it.deadline.daysUntil() + 1) }
+            .take(count)
+
     fun addSchedule(schedule: Schedule): PlannerItemStore =
         withoutSchedule(schedule.id).insertSchedule(schedule)
 
@@ -153,13 +159,6 @@ fun FlexibleDateTime.matchesDate(date: LocalDate): Boolean =
     (year == null || year == date.year) &&
         (month == null || month == date.monthValue) &&
         (day == null || day == date.dayOfMonth)
-
-fun FlexibleDateTime.toConcreteDateOrNull(): LocalDate? {
-    val y = year ?: return null
-    val m = month ?: return null
-    val d = day ?: return null
-    return runCatching { LocalDate.of(y, m, d) }.getOrNull()
-}
 
 private fun Schedule.matchesDate(date: LocalDate): Boolean {
     val startDate = startTime.toConcreteDateOrNull()

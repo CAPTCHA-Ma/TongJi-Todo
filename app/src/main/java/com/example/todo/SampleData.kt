@@ -93,6 +93,7 @@ object SampleData {
             reminders = listOf(
                 Reminder(at(today, hour = 21, minute = 0))
             ),
+            cost = 4,
             color = SoftRose
         ),
         Task(
@@ -106,6 +107,7 @@ object SampleData {
             reminders = listOf(
                 Reminder(at(tomorrow, hour = 20, minute = 0))
             ),
+            cost = 2,
             color = SoftPeach
         ),
         Task(
@@ -119,6 +121,7 @@ object SampleData {
             reminders = listOf(
                 Reminder(at(tomorrow, hour = 18, minute = 0))
             ),
+            cost = 3,
             color = SoftBlue
         )
     )

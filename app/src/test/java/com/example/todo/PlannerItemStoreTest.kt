@@ -74,4 +74,62 @@ class PlannerItemStoreTest {
         assertEquals(listOf(todayTask, tomorrowTask), store.activeTasks())
         assertEquals(listOf(completedTask), store.completedTasks())
     }
+
+    @Test
+    fun recommendedTasks_scoresByCostAndDeadlineProximity() {
+        val today = LocalDate.now()
+        val tomorrow = today.plusDays(1)
+        val dayAfter = today.plusDays(2)
+
+        val urgentEasy = Task(
+            id = "te",
+            title = "Urgent Easy",
+            deadline = FlexibleDateTime(
+                year = today.year, month = today.monthValue,
+                day = today.dayOfMonth, hour = 12, minute = 0
+            ),
+            cost = 1
+        )
+        val distantHard = Task(
+            id = "td",
+            title = "Distant Hard",
+            deadline = FlexibleDateTime(
+                year = dayAfter.year, month = dayAfter.monthValue,
+                day = dayAfter.dayOfMonth, hour = 12, minute = 0
+            ),
+            cost = 5
+        )
+        val tomorrowMedium = Task(
+            id = "tm",
+            title = "Tomorrow Medium",
+            deadline = FlexibleDateTime(
+                year = tomorrow.year, month = tomorrow.monthValue,
+                day = tomorrow.dayOfMonth, hour = 12, minute = 0
+            ),
+            cost = 3
+        )
+        val wildcardHigh = Task(
+            id = "tw",
+            title = "Someday Hard",
+            deadline = FlexibleDateTime(hour = 12, minute = 0),
+            cost = 5
+        )
+
+        val store = PlannerItemStore.from(
+            schedules = emptyList(),
+            tasks = listOf(distantHard, tomorrowMedium, urgentEasy, wildcardHigh)
+        )
+        val recommended = store.recommendedTasks()
+
+        // Scoring:
+        //   urgentEasy:     cost=1 / (0+1) = 1.0
+        //   distantHard:    cost=5 / (2+1) = 1.67
+        //   tomorrowMedium: cost=3 / (1+1) = 1.5
+        //   wildcardHigh:   cost=5 / (30+1) = 0.16
+        // Expected order: distantHard(1.67), tomorrowMedium(1.5), urgentEasy(1.0)
+        assertEquals(3, recommended.size)
+        assertEquals("Distant Hard", recommended[0].title)
+        assertEquals("Tomorrow Medium", recommended[1].title)
+        assertEquals("Urgent Easy", recommended[2].title)
+    }
 }

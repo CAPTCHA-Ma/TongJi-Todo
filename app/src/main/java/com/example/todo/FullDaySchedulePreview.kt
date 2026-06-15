@@ -118,7 +118,8 @@ fun FullDaySchedulePreview(
     schedulesForDate: (LocalDate) -> List<Schedule>,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
-    onScheduleClick: (Schedule) -> Unit = {}
+    onScheduleClick: (Schedule) -> Unit = {},
+    contentVersion: Int = 0
 ) {
     val progress = remember { Animatable(0f) }
     var isDismissing by remember { mutableStateOf(false) }
@@ -235,6 +236,7 @@ fun FullDaySchedulePreview(
                             MonthScheduleView(
                                 selectedDate = currentDate,
                                 schedulesForDate = schedulesForDate,
+                                contentVersion = contentVersion,
                                 onDateChange = { selectedEpochDay = it.toEpochDay() },
                                 onScheduleClick = onScheduleClick,
                                 modifier = Modifier.fillMaxSize()

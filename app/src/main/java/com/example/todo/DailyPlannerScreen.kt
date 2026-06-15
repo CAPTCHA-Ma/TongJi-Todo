@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -57,8 +58,12 @@ import com.example.todo.ui.theme.*
 @Composable
 fun DailyPlannerScreen() {
     val appContext = LocalContext.current.applicationContext
-    val state = remember(appContext) {
-        DailyPlannerState(PlannerPersistence(appContext))
+    val isPreview = LocalInspectionMode.current
+    val state = remember(appContext, isPreview) {
+        DailyPlannerState(
+            persistence = PlannerPersistence(appContext),
+            reminderScheduler = if (isPreview) null else PlannerReminderScheduler(appContext)
+        )
     }
 
     // ── adaptive card sizing ────────────────────────────────────────
@@ -196,7 +201,7 @@ fun DailyPlannerScreen() {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 PlannerCardStack(
-                    items = state.tasks,
+                    items = state.recommendedTasks,
                     itemKey = { it.id },
                     modifier = Modifier.fillMaxWidth(),
                     cardHeight = plannerCardHeight,
@@ -252,6 +257,7 @@ fun DailyPlannerScreen() {
                 schedulesForDate = state::schedulesFor,
                 onClose = { state.isFullDayPreviewOpen = false },
                 onScheduleClick = { schedule -> state.selectItem(schedule) },
+                contentVersion = state.contentVersion,
                 modifier = Modifier.blur(
                     radius = fullDayDetailBlurRadius,
                     edgeTreatment = BlurredEdgeTreatment.Rectangle

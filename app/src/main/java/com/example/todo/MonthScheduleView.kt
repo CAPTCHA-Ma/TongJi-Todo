@@ -1,22 +1,15 @@
 package com.example.todo
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -40,7 +34,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -50,7 +46,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.todo.ui.theme.BeigeBackground
@@ -58,7 +53,7 @@ import java.time.LocalDate
 import java.time.YearMonth
 import kotlin.math.abs
 import kotlin.math.ceil
-import kotlin.math.roundToInt
+import kotlin.math.max
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -67,10 +62,17 @@ private class MonthSwipeAnimationJobs {
     var switchJob: Job? = null
 }
 
+private data class MonthSchedulePageData(
+    val dates: List<LocalDate>,
+    val schedulesByDate: Map<LocalDate, List<Schedule>>,
+    val rowCount: Int
+)
+
 @Composable
 fun MonthScheduleView(
     selectedDate: LocalDate,
     schedulesForDate: (LocalDate) -> List<Schedule>,
+    contentVersion: Int = 0,
     onDateChange: (LocalDate) -> Unit,
     onScheduleClick: (Schedule) -> Unit,
     modifier: Modifier = Modifier
@@ -83,9 +85,9 @@ fun MonthScheduleView(
     var targetMonthIndex by remember { mutableStateOf<Long?>(null) }
     var previousSelectedEpochDay by remember { mutableStateOf<Long?>(null) }
     var transitionDirection by remember { mutableStateOf(0) }
-    var rubberOffsetPx by remember { mutableFloatStateOf(0f) }
+    val rubberOffsetPx = remember { mutableFloatStateOf(0f) }
     var isSwitching by remember { mutableStateOf(false) }
-    var switchProgress by remember { mutableFloatStateOf(1f) }
+    val switchProgress = remember { mutableFloatStateOf(1f) }
     val animationJobs = remember { MonthSwipeAnimationJobs() }
     val isSwitchingState by rememberUpdatedState(isSwitching)
 
@@ -96,8 +98,8 @@ fun MonthScheduleView(
             targetMonthIndex = null
             previousSelectedEpochDay = null
             transitionDirection = 0
-            rubberOffsetPx = 0f
-            switchProgress = 1f
+            rubberOffsetPx.floatValue = 0f
+            switchProgress.floatValue = 1f
         }
     }
 
@@ -114,13 +116,13 @@ fun MonthScheduleView(
 
         fun animateRubberBack() {
             animationJobs.rubberBackJob?.cancel()
-            val startOffset = rubberOffsetPx
+            val startOffset = rubberOffsetPx.floatValue
             animationJobs.rubberBackJob = scope.launch {
                 Animatable(startOffset).animateTo(
                     targetValue = 0f,
                     animationSpec = spring(dampingRatio = 0.72f, stiffness = 460f)
                 ) {
-                    rubberOffsetPx = value
+                    rubberOffsetPx.floatValue = value
                 }
                 animationJobs.rubberBackJob = null
             }
@@ -141,18 +143,18 @@ fun MonthScheduleView(
             previousSelectedEpochDay = selectedDate.toEpochDay()
             transitionDirection = direction
             targetMonthIndex = nextMonthIndex
-            switchProgress = 0f
+            switchProgress.floatValue = 0f
             onDateChange(nextSelectedDate)
 
             animationJobs.switchJob = scope.launch {
                 try {
-                    val startOffset = rubberOffsetPx
+                    val startOffset = rubberOffsetPx.floatValue
                     val rubberJob = launch {
                         Animatable(startOffset).animateTo(
                             targetValue = 0f,
                             animationSpec = spring(dampingRatio = 0.68f, stiffness = 520f)
                         ) {
-                            rubberOffsetPx = value
+                            rubberOffsetPx.floatValue = value
                         }
                     }
                     val pageJob = launch {
@@ -160,7 +162,7 @@ fun MonthScheduleView(
                             targetValue = 1f,
                             animationSpec = spring(dampingRatio = 0.78f, stiffness = 360f)
                         ) {
-                            switchProgress = value
+                            switchProgress.floatValue = value
                         }
                     }
 
@@ -171,8 +173,8 @@ fun MonthScheduleView(
                     targetMonthIndex = null
                     previousSelectedEpochDay = null
                     transitionDirection = 0
-                    rubberOffsetPx = 0f
-                    switchProgress = 1f
+                    rubberOffsetPx.floatValue = 0f
+                    switchProgress.floatValue = 1f
                 } finally {
                     isSwitching = false
                     animationJobs.switchJob = null
@@ -197,7 +199,6 @@ fun MonthScheduleView(
                         animationJobs.rubberBackJob = null
                         var lockedHorizontal = false
                         var lockedVertical = false
-                        var switchTriggered = false
                         var totalX = 0f
 
                         do {
@@ -222,18 +223,17 @@ fun MonthScheduleView(
                             }
 
                             if (lockedHorizontal) {
-                                rubberOffsetPx = monthRubberBandOffset(totalX, maxRubberPx)
+                                rubberOffsetPx.floatValue = monthRubberBandOffset(totalX, maxRubberPx)
                                 change.consume()
-                                if (abs(totalX) > swipeThresholdPx) {
-                                    switchTriggered = true
-                                    startMonthSwitch(if (totalX < 0f) 1 else -1)
-                                    break
-                                }
                             }
                         } while (event.changes.any { it.pressed })
 
-                        if (lockedHorizontal && !switchTriggered && !isSwitching) {
-                            animateRubberBack()
+                        if (lockedHorizontal && !isSwitching) {
+                            if (abs(totalX) > swipeThresholdPx) {
+                                startMonthSwitch(if (totalX < 0f) 1 else -1)
+                            } else {
+                                animateRubberBack()
+                            }
                         }
                     }
                 }
@@ -250,6 +250,7 @@ fun MonthScheduleView(
                 selectedDate = selectedDate,
                 previousSelectedDate = previousSelectedDate,
                 schedulesForDate = schedulesForDate,
+                contentVersion = contentVersion,
                 transitionDirection = transitionDirection,
                 transitionProgress = switchProgress,
                 rubberOffsetPx = rubberOffsetPx,
@@ -269,44 +270,44 @@ private fun MonthSchedulePage(
     selectedDate: LocalDate,
     previousSelectedDate: LocalDate?,
     schedulesForDate: (LocalDate) -> List<Schedule>,
+    contentVersion: Int,
     transitionDirection: Int,
-    transitionProgress: Float,
-    rubberOffsetPx: Float,
+    transitionProgress: MutableFloatState,
+    rubberOffsetPx: MutableFloatState,
     rubberLimitPx: Float,
     onDateChange: (LocalDate) -> Unit,
     onScheduleClick: (Schedule) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val monthDates = remember(month) { month.datesInMonth() }
-    val targetMonthDates = remember(targetMonth) { targetMonth?.datesInMonth() }
-    val currentRows = monthDates.monthRowCount()
-    val targetRows = targetMonthDates?.monthRowCount() ?: currentRows
-    val progress = if (targetMonthDates != null && transitionDirection != 0) {
-        transitionProgress.coerceIn(0f, 1f)
-    } else {
-        1f
+    val monthPageData = remember(month, contentVersion) {
+        month.toMonthSchedulePageData(schedulesForDate)
     }
-    val activeRows = if (targetMonthDates != null && transitionDirection != 0) {
-        currentRows + (targetRows - currentRows) * progress
+    val targetMonthPageData = remember(targetMonth, contentVersion) {
+        targetMonth?.toMonthSchedulePageData(schedulesForDate)
+    }
+    val activeRows = if (targetMonthPageData != null && transitionDirection != 0) {
+        max(monthPageData.rowCount, targetMonthPageData.rowCount).toFloat()
     } else {
-        currentRows.toFloat()
+        monthPageData.rowCount.toFloat()
     }
     val currentSelectedDate = previousSelectedDate ?: selectedDate
-    val pull = (abs(rubberOffsetPx) / rubberLimitPx.coerceAtLeast(1f)).coerceIn(0f, 1f)
 
     MonthScheduleGrid(
-        dates = monthDates,
-        targetDates = targetMonthDates,
+        dates = monthPageData.dates,
+        targetDates = targetMonthPageData?.dates,
         selectedDate = currentSelectedDate,
         targetSelectedDate = selectedDate,
-        schedulesForDate = schedulesForDate,
+        schedulesByDate = monthPageData.schedulesByDate,
+        targetSchedulesByDate = targetMonthPageData?.schedulesByDate,
         activeRows = activeRows,
         transitionDirection = transitionDirection,
         transitionProgress = transitionProgress,
         onDateChange = onDateChange,
         onScheduleClick = onScheduleClick,
         modifier = modifier.graphicsLayer {
-            translationX = rubberOffsetPx
+            val offset = rubberOffsetPx.floatValue
+            val pull = (abs(offset) / rubberLimitPx.coerceAtLeast(1f)).coerceIn(0f, 1f)
+            translationX = offset
             scaleX = 1f - pull * 0.01f
             scaleY = 1f - pull * 0.005f
         }
@@ -319,10 +320,11 @@ private fun MonthScheduleGrid(
     targetDates: List<LocalDate>?,
     selectedDate: LocalDate,
     targetSelectedDate: LocalDate,
-    schedulesForDate: (LocalDate) -> List<Schedule>,
+    schedulesByDate: Map<LocalDate, List<Schedule>>,
+    targetSchedulesByDate: Map<LocalDate, List<Schedule>>?,
     activeRows: Float,
     transitionDirection: Int,
-    transitionProgress: Float,
+    transitionProgress: MutableFloatState,
     onDateChange: (LocalDate) -> Unit,
     onScheduleClick: (Schedule) -> Unit,
     modifier: Modifier = Modifier
@@ -375,20 +377,37 @@ private fun MonthScheduleGrid(
             }
         }
 
-        if (targetDates != null && transitionDirection != 0) {
-            val pageProgress = transitionProgress.coerceIn(0f, 1.08f)
+        val isTransitioning = targetDates != null && transitionDirection != 0
+        val labelDates = if (isTransitioning) targetDates.orEmpty() else dates
+        val labelSelectedDate = if (isTransitioning) targetSelectedDate else selectedDate
+        val tappableSchedulesByDate = if (isTransitioning) {
+            targetSchedulesByDate.orEmpty()
+        } else {
+            schedulesByDate
+        }
+
+        MonthDateLabelsLayer(
+            dates = labelDates,
+            selectedDate = labelSelectedDate,
+            dayWidth = dayWidth,
+            dayHeight = dayHeight,
+            daySpacing = daySpacing,
+            rowSpacing = rowSpacing,
+            contentPadding = contentPadding,
+            modifier = Modifier.matchParentSize()
+        )
+
+        if (isTransitioning) {
+            val pageProgress = transitionProgress.floatValue.coerceIn(0f, 1.08f)
             val boundedProgress = pageProgress.coerceIn(0f, 1f)
-            MonthDaysPage(
+            MonthScheduleCardsPage(
                 dates = dates,
-                selectedDate = selectedDate,
-                schedulesForDate = schedulesForDate,
+                schedulesByDate = schedulesByDate,
                 dayWidth = dayWidth,
                 dayHeight = dayHeight,
                 daySpacing = daySpacing,
                 rowSpacing = rowSpacing,
                 contentPadding = contentPadding,
-                onDateChange = onDateChange,
-                onScheduleClick = onScheduleClick,
                 modifier = Modifier
                     .matchParentSize()
                     .graphicsLayer {
@@ -398,17 +417,14 @@ private fun MonthScheduleGrid(
                         scaleY = scaleX
                     }
             )
-            MonthDaysPage(
-                dates = targetDates,
-                selectedDate = targetSelectedDate,
-                schedulesForDate = schedulesForDate,
+            MonthScheduleCardsPage(
+                dates = targetDates.orEmpty(),
+                schedulesByDate = targetSchedulesByDate.orEmpty(),
                 dayWidth = dayWidth,
                 dayHeight = dayHeight,
                 daySpacing = daySpacing,
                 rowSpacing = rowSpacing,
                 contentPadding = contentPadding,
-                onDateChange = onDateChange,
-                onScheduleClick = onScheduleClick,
                 modifier = Modifier
                     .matchParentSize()
                     .graphicsLayer {
@@ -419,216 +435,168 @@ private fun MonthScheduleGrid(
                     }
             )
         } else {
-            MonthDaysPage(
+            MonthScheduleCardsPage(
                 dates = dates,
-                selectedDate = selectedDate,
-                schedulesForDate = schedulesForDate,
+                schedulesByDate = schedulesByDate,
                 dayWidth = dayWidth,
                 dayHeight = dayHeight,
                 daySpacing = daySpacing,
                 rowSpacing = rowSpacing,
                 contentPadding = contentPadding,
-                onDateChange = onDateChange,
-                onScheduleClick = onScheduleClick,
                 modifier = Modifier.matchParentSize()
             )
         }
+
+        MonthTapLayer(
+            dates = labelDates,
+            schedulesByDate = tappableSchedulesByDate,
+            dayWidth = dayWidth,
+            dayHeight = dayHeight,
+            daySpacing = daySpacing,
+            rowSpacing = rowSpacing,
+            contentPadding = contentPadding,
+            onDateChange = onDateChange,
+            onScheduleClick = onScheduleClick,
+            modifier = Modifier.matchParentSize()
+        )
     }
 }
 
 @Composable
-private fun MonthDaysPage(
+private fun MonthDateLabelsLayer(
     dates: List<LocalDate>,
     selectedDate: LocalDate,
-    schedulesForDate: (LocalDate) -> List<Schedule>,
     dayWidth: Dp,
     dayHeight: Dp,
     daySpacing: Dp,
     rowSpacing: Dp,
     contentPadding: Dp,
-    onDateChange: (LocalDate) -> Unit,
-    onScheduleClick: (Schedule) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val density = LocalDensity.current
-
     Box(modifier = modifier) {
         val dateBarHeight = 18.dp
+        val dateLabelHeight = 18.dp
+        val cellPaddingV = 4.dp
         val rowCount = dates.monthRowCount().toInt()
 
-        repeat(rowCount) { row ->
-            val dayCount = (dates.size - row * 7).coerceIn(0, 7)
-            if (dayCount > 0) {
-                val barWidth = dayWidth * dayCount.toFloat() + daySpacing * (dayCount - 1).toFloat()
-                val yOffset = contentPadding + (dayHeight + rowSpacing) * row.toFloat() + 4.dp
+        Canvas(modifier = Modifier.matchParentSize()) {
+            val paddingPx = contentPadding.toPx()
+            val dayWidthPx = dayWidth.toPx()
+            val dayHeightPx = dayHeight.toPx()
+            val daySpacingPx = daySpacing.toPx()
+            val rowSpacingPx = rowSpacing.toPx()
+            val dateBarHeightPx = dateBarHeight.toPx()
 
-                Box(
-                    modifier = Modifier
-                        .offset {
-                            IntOffset(
-                                x = with(density) { contentPadding.toPx() }.roundToInt(),
-                                y = with(density) { yOffset.toPx() }.roundToInt()
-                            )
-                        }
-                        .width(barWidth)
-                        .height(dateBarHeight)
-                        .background(Color.Black, RoundedCornerShape(999.dp))
-                )
+            repeat(rowCount) { row ->
+                val dayCount = (dates.size - row * 7).coerceIn(0, 7)
+                if (dayCount > 0) {
+                    val barWidth = dayWidthPx * dayCount + daySpacingPx * (dayCount - 1)
+                    val y = paddingPx + (dayHeightPx + rowSpacingPx) * row + 4.dp.toPx()
+                    drawRoundRect(
+                        color = Color.Black,
+                        topLeft = Offset(paddingPx, y),
+                        size = Size(barWidth, dateBarHeightPx),
+                        cornerRadius = CornerRadius(dateBarHeightPx / 2f, dateBarHeightPx / 2f)
+                    )
+                }
             }
         }
 
         dates.forEachIndexed { index, date ->
             val column = index % 7
             val row = index / 7
-            val xOffset = contentPadding + (dayWidth + daySpacing) * column.toFloat()
-            val yOffset = contentPadding + (dayHeight + rowSpacing) * row.toFloat()
+            val selected = date == selectedDate
+            val labelLeft = contentPadding + (dayWidth + daySpacing) * column.toFloat()
+            val labelTop = contentPadding + (dayHeight + rowSpacing) * row.toFloat() +
+                cellPaddingV
 
-            MonthDayCell(
-                date = date,
-                selected = date == selectedDate,
-                schedules = schedulesForDate(date),
-                dayWidth = dayWidth,
+            Box(
                 modifier = Modifier
-                    .offset {
-                        IntOffset(
-                            x = with(density) { xOffset.toPx() }.roundToInt(),
-                            y = with(density) { yOffset.toPx() }.roundToInt()
-                        )
-                    }
+                    .offset(x = labelLeft, y = labelTop)
                     .width(dayWidth)
-                    .height(dayHeight),
-                onDateClick = { onDateChange(date) },
-                onScheduleClick = { schedule ->
-                    onDateChange(date)
-                    onScheduleClick(schedule)
-                }
-            )
-        }
-    }
-}
-
-@Composable
-private fun MonthDayCell(
-    date: LocalDate,
-    selected: Boolean,
-    schedules: List<Schedule>,
-    dayWidth: Dp,
-    modifier: Modifier = Modifier,
-    onDateClick: () -> Unit,
-    onScheduleClick: (Schedule) -> Unit
-) {
-    Column(
-        modifier = modifier
-            .clipToBounds()
-            .clickable(
-                interactionSource = null,
-                indication = null,
-                onClick = onDateClick
-            )
-            .padding(horizontal = 3.dp, vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        MonthDateLabel(
-            day = date.dayOfMonth,
-            selected = selected,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(18.dp)
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val cardSpacing = 3.dp
-            val minCardHeight = 18.dp
-            val maxCardHeight = 30.dp
-            val availableSlots = ((maxHeight.value + cardSpacing.value) /
-                (minCardHeight.value + cardSpacing.value)).toInt().coerceAtLeast(0)
-            val visibleCount = when {
-                availableSlots <= 0 -> 0
-                schedules.size > availableSlots && availableSlots > 1 -> availableSlots - 1
-                else -> schedules.size.coerceAtMost(availableSlots)
-            }
-            val moreCount = schedules.size - visibleCount
-            val rowCount = visibleCount + if (moreCount > 0 && availableSlots > 0) 1 else 0
-            val rawCardHeight = if (rowCount > 0) {
-                (maxHeight - cardSpacing * (rowCount - 1).toFloat()) / rowCount.toFloat()
-            } else {
-                0.dp
-            }
-            val cardHeight = rawCardHeight.coerceIn(minCardHeight, maxCardHeight)
-
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(cardSpacing),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .height(dateLabelHeight)
+                    .background(
+                        color = if (selected) Color.White else Color.Transparent,
+                        shape = RoundedCornerShape(999.dp)
+                    ),
+                contentAlignment = Alignment.Center
             ) {
-                schedules.take(visibleCount).forEach { schedule ->
-                    MonthScheduleCard(
-                        schedule = schedule,
-                        cardWidth = dayWidth,
-                        cardHeight = cardHeight,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(cardHeight),
-                        onClick = { onScheduleClick(schedule) }
-                    )
-                }
-                if (moreCount > 0 && availableSlots > 0) {
-                    MonthMoreCard(
-                        count = moreCount,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(cardHeight)
-                    )
-                }
+                Text(
+                    text = date.dayOfMonth.toString().padStart(2, '0'),
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontSize = 9.sp,
+                        lineHeight = 10.sp
+                    ),
+                    fontWeight = FontWeight.Black,
+                    color = if (selected) Color.Black else Color.White,
+                    maxLines = 1,
+                    textAlign = TextAlign.Center,
+                    overflow = TextOverflow.Clip
+                )
             }
         }
     }
 }
 
 @Composable
-private fun MonthDateLabel(
-    day: Int,
-    selected: Boolean,
+private fun MonthScheduleCardsPage(
+    dates: List<LocalDate>,
+    schedulesByDate: Map<LocalDate, List<Schedule>>,
+    dayWidth: Dp,
+    dayHeight: Dp,
+    daySpacing: Dp,
+    rowSpacing: Dp,
+    contentPadding: Dp,
     modifier: Modifier = Modifier
 ) {
-    val background by animateColorAsState(
-        targetValue = if (selected) Color.White else Color.Transparent,
-        animationSpec = tween(180, easing = FastOutSlowInEasing),
-        label = "MonthDateLabelBackground"
-    )
-    val contentColor by animateColorAsState(
-        targetValue = if (selected) Color.Black else Color.White,
-        animationSpec = tween(180, easing = FastOutSlowInEasing),
-        label = "MonthDateLabelContent"
-    )
-    val selectedScale by animateFloatAsState(
-        targetValue = if (selected) 1.06f else 1f,
-        animationSpec = tween(180, easing = FastOutSlowInEasing),
-        label = "MonthDateLabelScale"
-    )
+    Box(modifier = modifier) {
+        val dateLabelHeight = 18.dp
+        val dateLabelGap = 4.dp
+        val cellPaddingH = 3.dp
+        val cellPaddingV = 4.dp
+        val cardSpacing = 3.dp
 
-    Box(
-        modifier = modifier
-            .graphicsLayer {
-                scaleX = selectedScale
-                scaleY = selectedScale
+        dates.forEachIndexed { index, date ->
+            val schedules = schedulesByDate[date].orEmpty()
+            if (schedules.isEmpty()) return@forEachIndexed
+
+            val layout = monthCellCardsLayout(dayHeight = dayHeight, scheduleCount = schedules.size)
+            if (layout.renderedRows <= 0) return@forEachIndexed
+
+            val column = index % 7
+            val row = index / 7
+            val cellLeft = contentPadding + (dayWidth + daySpacing) * column.toFloat()
+            val cellTop = contentPadding + (dayHeight + rowSpacing) * row.toFloat()
+            val cardLeft = cellLeft + cellPaddingH
+            val cardAreaTop = cellTop + cellPaddingV + dateLabelHeight + dateLabelGap
+            val cardWidth = (dayWidth - cellPaddingH * 2f).coerceAtLeast(1.dp)
+
+            schedules.take(layout.visibleCount).forEachIndexed { scheduleIndex, schedule ->
+                val cardTop = cardAreaTop +
+                    (layout.cardHeight + cardSpacing) * scheduleIndex.toFloat()
+                MonthScheduleCard(
+                    schedule = schedule,
+                    cardWidth = cardWidth,
+                    cardHeight = layout.cardHeight,
+                    modifier = Modifier
+                        .offset(x = cardLeft, y = cardTop)
+                        .width(cardWidth)
+                        .height(layout.cardHeight)
+                )
             }
-            .background(background, RoundedCornerShape(999.dp)),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = day.toString().padStart(2, '0'),
-            style = MaterialTheme.typography.labelSmall.copy(
-                fontSize = 9.sp,
-                lineHeight = 10.sp
-            ),
-            fontWeight = FontWeight.Black,
-            color = contentColor,
-            maxLines = 1,
-            textAlign = TextAlign.Center,
-            overflow = TextOverflow.Clip
-        )
+
+            if (layout.moreCount > 0 && layout.availableSlots > 0) {
+                val moreTop = cardAreaTop +
+                    (layout.cardHeight + cardSpacing) * layout.visibleCount.toFloat()
+                MonthMoreCard(
+                    moreCount = layout.moreCount,
+                    modifier = Modifier
+                        .offset(x = cardLeft, y = moreTop)
+                        .width(cardWidth)
+                        .height(layout.cardHeight)
+                )
+            }
+        }
     }
 }
 
@@ -637,27 +605,23 @@ private fun MonthScheduleCard(
     schedule: Schedule,
     cardWidth: Dp,
     cardHeight: Dp,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
+    modifier: Modifier = Modifier
 ) {
     val background = if (schedule.color == Color.White) {
         BeigeBackground.copy(alpha = 0.95f)
     } else {
         schedule.color
     }
-    val title = schedule.title.ifBlank { " " }
     val showText = cardWidth >= 18.dp && cardHeight >= 16.dp
-    val maxChars = ((cardWidth.value - 6f) / 5.4f).toInt().coerceIn(1, title.length)
+    val title = schedule.title.ifBlank { " " }
+    val maxChars = ((cardWidth.value - 6f) / 5.4f)
+        .toInt()
+        .coerceIn(1, title.length)
 
     Box(
         modifier = modifier
             .background(background, RoundedCornerShape(8.dp))
-            .clickable(
-                interactionSource = null,
-                indication = null,
-                onClick = onClick
-            )
-            .padding(horizontal = 3.dp, vertical = 2.dp),
+            .padding(horizontal = 2.dp),
         contentAlignment = Alignment.Center
     ) {
         if (showText) {
@@ -670,7 +634,7 @@ private fun MonthScheduleCard(
                 fontWeight = FontWeight.Black,
                 color = Color.Black.copy(alpha = 0.78f),
                 textAlign = TextAlign.Center,
-                maxLines = if (cardHeight >= 27.dp) 2 else 1,
+                maxLines = 1,
                 overflow = TextOverflow.Clip,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -680,29 +644,158 @@ private fun MonthScheduleCard(
 
 @Composable
 private fun MonthMoreCard(
-    count: Int,
+    moreCount: Int,
     modifier: Modifier = Modifier
 ) {
+    val shape = RoundedCornerShape(8.dp)
     Box(
         modifier = modifier
-            .background(Color.White.copy(alpha = 0.48f), RoundedCornerShape(8.dp))
-            .border(1.dp, Color.Black.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
-            .padding(horizontal = 3.dp, vertical = 2.dp),
+            .background(Color.White.copy(alpha = 0.48f), shape)
+            .border(1.dp, Color.Black.copy(alpha = 0.12f), shape),
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "+$count",
+            text = "+$moreCount",
             style = MaterialTheme.typography.labelSmall.copy(
                 fontSize = 8.sp,
                 lineHeight = 9.sp
             ),
             fontWeight = FontWeight.Black,
             color = Color.Black.copy(alpha = 0.54f),
-            maxLines = 1,
             textAlign = TextAlign.Center,
+            maxLines = 1,
             overflow = TextOverflow.Clip
         )
     }
+}
+
+@Composable
+private fun MonthTapLayer(
+    dates: List<LocalDate>,
+    schedulesByDate: Map<LocalDate, List<Schedule>>,
+    dayWidth: Dp,
+    dayHeight: Dp,
+    daySpacing: Dp,
+    rowSpacing: Dp,
+    contentPadding: Dp,
+    onDateChange: (LocalDate) -> Unit,
+    onScheduleClick: (Schedule) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier.pointerInput(
+            dates,
+            schedulesByDate,
+            dayWidth,
+            dayHeight,
+            daySpacing,
+            rowSpacing,
+            contentPadding
+        ) {
+            detectTapGestures { tap ->
+                val paddingPx = contentPadding.toPx()
+                val dayWidthPx = dayWidth.toPx()
+                val dayHeightPx = dayHeight.toPx()
+                val daySpacingPx = daySpacing.toPx()
+                val rowSpacingPx = rowSpacing.toPx()
+                val dateLabelHeightPx = 18.dp.toPx()
+                val dateLabelGapPx = 4.dp.toPx()
+                val cellPaddingHPx = 3.dp.toPx()
+                val cellPaddingVPx = 4.dp.toPx()
+                val cardSpacingPx = 3.dp.toPx()
+                val minCardHeightPx = 18.dp.toPx()
+                val maxCardHeightPx = 30.dp.toPx()
+
+                val column = ((tap.x - paddingPx) / (dayWidthPx + daySpacingPx)).toInt()
+                val row = ((tap.y - paddingPx) / (dayHeightPx + rowSpacingPx)).toInt()
+                if (column !in 0..6 || row < 0) return@detectTapGestures
+
+                val index = row * 7 + column
+                val date = dates.getOrNull(index) ?: return@detectTapGestures
+                val cellLeft = paddingPx + column * (dayWidthPx + daySpacingPx)
+                val cellTop = paddingPx + row * (dayHeightPx + rowSpacingPx)
+                val insideX = tap.x in cellLeft..(cellLeft + dayWidthPx)
+                val insideY = tap.y in cellTop..(cellTop + dayHeightPx)
+                if (!insideX || !insideY) return@detectTapGestures
+
+                val schedules = schedulesByDate[date].orEmpty()
+                val cardAreaTop = cellTop + cellPaddingVPx + dateLabelHeightPx + dateLabelGapPx
+                val cardAreaHeight = dayHeightPx - cellPaddingVPx * 2f - dateLabelHeightPx -
+                    dateLabelGapPx
+                val availableSlots = ((cardAreaHeight + cardSpacingPx) /
+                    (minCardHeightPx + cardSpacingPx)).toInt().coerceAtLeast(0)
+                val visibleCount = when {
+                    availableSlots <= 0 -> 0
+                    schedules.size > availableSlots && availableSlots > 1 -> availableSlots - 1
+                    else -> schedules.size.coerceAtMost(availableSlots)
+                }
+                val moreCount = schedules.size - visibleCount
+                val renderedRows = visibleCount + if (moreCount > 0 && availableSlots > 0) 1 else 0
+                val rawCardHeight = if (renderedRows > 0) {
+                    (cardAreaHeight - cardSpacingPx * (renderedRows - 1)) / renderedRows
+                } else {
+                    0f
+                }
+                val cardHeight = rawCardHeight.coerceIn(minCardHeightPx, maxCardHeightPx)
+                val cardLeft = cellLeft + cellPaddingHPx
+                val cardRight = cellLeft + dayWidthPx - cellPaddingHPx
+
+                if (tap.x in cardLeft..cardRight && tap.y >= cardAreaTop && visibleCount > 0) {
+                    val relativeY = tap.y - cardAreaTop
+                    val cardIndex = (relativeY / (cardHeight + cardSpacingPx)).toInt()
+                    val cardTop = cardAreaTop + cardIndex * (cardHeight + cardSpacingPx)
+                    if (cardIndex in 0 until visibleCount && tap.y <= cardTop + cardHeight) {
+                        onDateChange(date)
+                        onScheduleClick(schedules[cardIndex])
+                        return@detectTapGestures
+                    }
+                }
+
+                onDateChange(date)
+            }
+        }
+    )
+}
+
+private data class MonthCellCardsLayout(
+    val availableSlots: Int,
+    val visibleCount: Int,
+    val moreCount: Int,
+    val renderedRows: Int,
+    val cardHeight: Dp
+)
+
+private fun monthCellCardsLayout(dayHeight: Dp, scheduleCount: Int): MonthCellCardsLayout {
+    val dateLabelHeight = 18.dp
+    val dateLabelGap = 4.dp
+    val cellPaddingV = 4.dp
+    val cardSpacing = 3.dp
+    val minCardHeight = 18.dp
+    val maxCardHeight = 30.dp
+    val cardAreaHeight = (dayHeight - cellPaddingV * 2f - dateLabelHeight - dateLabelGap)
+        .coerceAtLeast(0.dp)
+    val availableSlots = ((cardAreaHeight.value + cardSpacing.value) /
+        (minCardHeight.value + cardSpacing.value)).toInt().coerceAtLeast(0)
+    val visibleCount = when {
+        availableSlots <= 0 -> 0
+        scheduleCount > availableSlots && availableSlots > 1 -> availableSlots - 1
+        else -> scheduleCount.coerceAtMost(availableSlots)
+    }
+    val moreCount = scheduleCount - visibleCount
+    val renderedRows = visibleCount + if (moreCount > 0 && availableSlots > 0) 1 else 0
+    val rawCardHeight = if (renderedRows > 0) {
+        (cardAreaHeight.value - cardSpacing.value * (renderedRows - 1)) / renderedRows
+    } else {
+        0f
+    }
+    val cardHeight = rawCardHeight.coerceIn(minCardHeight.value, maxCardHeight.value).dp
+    return MonthCellCardsLayout(
+        availableSlots = availableSlots,
+        visibleCount = visibleCount,
+        moreCount = moreCount,
+        renderedRows = renderedRows,
+        cardHeight = cardHeight
+    )
 }
 
 private fun monthRubberBandOffset(rawOffset: Float, limit: Float): Float {
@@ -715,9 +808,20 @@ private fun monthRubberBandOffset(rawOffset: Float, limit: Float): Float {
 private fun YearMonth.datesInMonth(): List<LocalDate> =
     (1..lengthOfMonth()).map { day -> atDay(day) }
 
-private fun List<LocalDate>.monthRowCount(): Float {
-    if (isEmpty()) return 1f
-    return ((size + 6) / 7).toFloat()
+private fun YearMonth.toMonthSchedulePageData(
+    schedulesForDate: (LocalDate) -> List<Schedule>
+): MonthSchedulePageData {
+    val dates = datesInMonth()
+    return MonthSchedulePageData(
+        dates = dates,
+        schedulesByDate = dates.associateWith(schedulesForDate),
+        rowCount = dates.monthRowCount()
+    )
+}
+
+private fun List<LocalDate>.monthRowCount(): Int {
+    if (isEmpty()) return 1
+    return (size + 6) / 7
 }
 
 private fun LocalDate.toMonthIndex(): Long =

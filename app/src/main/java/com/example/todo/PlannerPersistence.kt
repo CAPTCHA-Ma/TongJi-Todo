@@ -59,6 +59,7 @@ class PlannerPersistence(context: Context) {
             .put("reminders", remindersToJson(reminders))
             .put("isCompleted", isCompleted)
             .put("color", color.toArgb())
+            .put("cost", cost)
 
     private fun FlexibleDateTime.toJson(): JSONObject =
         JSONObject()
@@ -109,7 +110,8 @@ class PlannerPersistence(context: Context) {
             description = json.optJSONArray("description").orEmptyObjects(::detailEntryFromJson),
             reminders = json.optJSONArray("reminders").orEmptyObjects(::reminderFromJson),
             isCompleted = json.optBoolean("isCompleted", false),
-            color = Color(json.optInt("color", Color.White.toArgb()))
+            color = Color(json.optInt("color", Color.White.toArgb())),
+            cost = json.optInt("cost", 3)
         )
 
     private fun flexibleDateTimeFromJson(json: JSONObject): FlexibleDateTime =
@@ -148,6 +150,6 @@ class PlannerPersistence(context: Context) {
     private companion object {
         const val PreferencesName = "planner_items"
         const val StoreKey = "planner_store"
-        const val StoreVersion = 1
+        const val StoreVersion = 2
     }
 }

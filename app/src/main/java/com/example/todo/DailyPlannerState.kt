@@ -14,7 +14,8 @@ import java.time.LocalDate
  * window: today (offset 0), tomorrow (1), and the day after tomorrow (2).
  */
 class DailyPlannerState(
-    private val persistence: PlannerPersistence? = null
+    private val persistence: PlannerPersistence? = null,
+    private val reminderScheduler: PlannerReminderScheduler? = null
 ) {
 
     // ── schedule & task data ──────────────────────────────────────
@@ -26,6 +27,13 @@ class DailyPlannerState(
             tasks = SampleData.defaultTasks
         )
     )
+    private var storeVersion by mutableIntStateOf(0)
+
+    init {
+        reminderScheduler?.sync(itemStore)
+    }
+
+    val contentVersion: Int get() = storeVersion
 
     val currentDate: LocalDate get() = baseDate.plusDays(currentDayOffset.toLong())
     val currentDayItems: PlannerDayItems get() = itemStore.itemsFor(currentDate)
@@ -34,6 +42,9 @@ class DailyPlannerState(
     val completedTasks: List<Task> get() = itemStore.completedTasksFor(currentDate)
     val allTasks: List<Task> get() = itemStore.activeTasks()
     val allCompletedTasks: List<Task> get() = itemStore.completedTasks()
+
+    /** Top 3 recommended tasks from all active tasks, ranked by cost & deadline proximity. */
+    val recommendedTasks: List<Task> get() = itemStore.recommendedTasks()
 
     fun schedulesFor(date: LocalDate): List<Schedule> =
         itemStore.schedulesFor(date)
@@ -147,6 +158,8 @@ class DailyPlannerState(
 
     private fun updateStore(nextStore: PlannerItemStore) {
         itemStore = nextStore
+        storeVersion++
         persistence?.save(nextStore)
+        reminderScheduler?.sync(nextStore)
     }
 }

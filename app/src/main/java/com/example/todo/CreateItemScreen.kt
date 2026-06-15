@@ -58,6 +58,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -146,6 +147,7 @@ fun CreateItemScreen(
     var scheduleEnd by remember(defaultTime) { mutableStateOf(defaultTime) }
     var taskDeadline by remember(defaultTime) { mutableStateOf(defaultTime) }
     var accentColor by remember { mutableStateOf(SoftBlue) }
+    var taskCost by remember { mutableIntStateOf(3) }
     var pickerState by remember { mutableStateOf<TimePickerState?>(null) }
 
     BackHandler(onBack = onClose)
@@ -184,7 +186,8 @@ fun CreateItemScreen(
                     deadline = taskDeadline,
                     description = cleanedDetails,
                     reminders = createdReminders,
-                    color = accentColor
+                    color = accentColor,
+                    cost = taskCost
                 )
             )
         }
@@ -278,9 +281,12 @@ fun CreateItemScreen(
                                         title = "Start Time",
                                         value = scheduleStart,
                                         pairValue = scheduleEnd,
-                                        onValueChange = {
-                                            scheduleStart = it
-                                            pickerState = pickerState?.copy(value = it)
+                                        onValueChange = { newStart ->
+                                            scheduleStart = newStart
+                                            if (newStart.compareTo(scheduleEnd) > 0) {
+                                                scheduleEnd = newStart
+                                            }
+                                            pickerState = pickerState?.copy(value = newStart)
                                         },
                                         onPairValueChange = {
                                             scheduleEnd = it
@@ -299,9 +305,11 @@ fun CreateItemScreen(
                                         title = "End Time",
                                         value = scheduleEnd,
                                         pairValue = scheduleStart,
-                                        onValueChange = {
-                                            scheduleEnd = it
-                                            pickerState = pickerState?.copy(value = it)
+                                        onValueChange = { newEnd ->
+                                            if (newEnd.compareTo(scheduleStart) >= 0) {
+                                                scheduleEnd = newEnd
+                                            }
+                                            pickerState = pickerState?.copy(value = newEnd)
                                         },
                                         onPairValueChange = {
                                             scheduleStart = it
@@ -337,6 +345,15 @@ fun CreateItemScreen(
                     selectedColor = accentColor,
                     onSelect = { accentColor = it }
                 )
+
+                if (selectedType == CreateItemType.Task) {
+                    Spacer(modifier = Modifier.height(26.dp))
+                    CreateLabel("Estimated Effort")
+                    CostSelector(
+                        selectedCost = taskCost,
+                        onSelect = { taskCost = it }
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(30.dp))
 
@@ -722,6 +739,57 @@ private fun ColorSwatches(
                         onClick = { onSelect(color) }
                     )
             )
+        }
+    }
+}
+
+@Composable
+private fun CostSelector(
+    selectedCost: Int,
+    onSelect: (Int) -> Unit
+) {
+    val costs = listOf(1, 2, 3, 4, 5)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .border(2.dp, Color.Black.copy(alpha = 0.32f), RoundedCornerShape(999.dp))
+            .background(Color.White.copy(alpha = 0.42f), RoundedCornerShape(999.dp))
+            .padding(4.dp)
+    ) {
+        costs.forEach { cost ->
+            val selected = cost == selectedCost
+            val background by animateColorAsState(
+                targetValue = if (selected) Color.Black else Color.Transparent,
+                animationSpec = tween(180),
+                label = "CostSegmentBG"
+            )
+            val contentColor by animateColorAsState(
+                targetValue = if (selected) Color.White else Color.Black.copy(alpha = 0.62f),
+                animationSpec = tween(180),
+                label = "CostSegmentText"
+            )
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .background(background, RoundedCornerShape(999.dp))
+                    .clickable(
+                        interactionSource = null,
+                        indication = null,
+                        onClick = { onSelect(cost) }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = cost.toString(),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Black,
+                    color = contentColor
+                )
+            }
         }
     }
 }

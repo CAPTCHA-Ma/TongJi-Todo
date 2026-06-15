@@ -1,6 +1,8 @@
 package com.example.todo
 
+import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 
 /**
  * A date/time representation where every field is optional.
@@ -31,6 +33,45 @@ data class FlexibleDateTime(
      */
     val isEmpty: Boolean get() =
         year == null && month == null && day == null && hour == null && minute == null
+}
+
+// ────────────────────────────────────────────────────────
+// Comparison
+// ────────────────────────────────────────────────────────
+
+/**
+ * Lexicographically compare two [FlexibleDateTime] values
+ * (year → month → day → hour → minute).
+ *
+ * Only compares fields where **both** values are non-null — a null
+ * field is a wildcard and is treated as equal.
+ *
+ * @return -1 if `this` is definitely before [other],
+ *          1 if `this` is definitely after  [other],
+ *          0 if they are equal or the comparison is ambiguous.
+ */
+fun FlexibleDateTime.compareTo(other: FlexibleDateTime): Int {
+    if (year != null && other.year != null) {
+        val cmp = year.compareTo(other.year)
+        if (cmp != 0) return cmp
+    }
+    if (month != null && other.month != null) {
+        val cmp = month.compareTo(other.month)
+        if (cmp != 0) return cmp
+    }
+    if (day != null && other.day != null) {
+        val cmp = day.compareTo(other.day)
+        if (cmp != 0) return cmp
+    }
+    if (hour != null && other.hour != null) {
+        val cmp = hour.compareTo(other.hour)
+        if (cmp != 0) return cmp
+    }
+    if (minute != null && other.minute != null) {
+        val cmp = minute.compareTo(other.minute)
+        if (cmp != 0) return cmp
+    }
+    return 0
 }
 
 // ────────────────────────────────────────────────────────
@@ -72,10 +113,15 @@ fun FlexibleDateTime.toDisplayString(): String {
  * Smart-format: compare against [now] and display only from the largest differing
  * unit downward.  A `null` field is treated as a wildcard (always matches).
  *
+ * Three display levels (highest differing wins):
+ *   - Year differs       →  `"2027年"`
+ *   - Month or day differs →  `"6月5日"`
+ *   - Only time differs  →  `"17:04"`
+ *
  * Examples with `now = 2026-06-04 19:03`:
  *   - `FlexibleDateTime(month=6, day=4, hour=17, minute=4)`  →  `"17:04"`
  *   - `FlexibleDateTime(month=6, day=5, hour=19, minute=3)`  →  `"6月5日"`
- *   - `FlexibleDateTime(year=2025, month=6, day=4)`          →  `"2025年6月4日"`
+ *   - `FlexibleDateTime(year=2025, month=6, day=4)`          →  `"2025年"`
  */
 fun FlexibleDateTime.toSmartString(now: LocalDateTime = LocalDateTime.now()): String {
     // Determine the first (largest) unit that differs from now.
@@ -88,12 +134,8 @@ fun FlexibleDateTime.toSmartString(now: LocalDateTime = LocalDateTime.now()): St
 
     return when {
         yearDiff -> {
-            // Year is the biggest difference → show year + month + day
-            buildString {
-                append("${year}年")
-                if (month != null) append("${month}月")
-                if (day != null) append("${day}日")
-            }
+            // Year is the biggest difference → show only the year
+            "${year}年"
         }
         monthDiff -> {
             // Month differs (year same) → show month + day
@@ -118,4 +160,34 @@ fun FlexibleDateTime.toSmartString(now: LocalDateTime = LocalDateTime.now()): St
             toTimeString()
         }
     }
+}
+
+// ────────────────────────────────────────────────────────
+// Date resolution
+// ────────────────────────────────────────────────────────
+
+/**
+ * Converts this FlexibleDateTime to a concrete [LocalDate] when year,
+ * month, and day are all non-null.  Returns `null` otherwise.
+ */
+fun FlexibleDateTime.toConcreteDateOrNull(): LocalDate? {
+    val y = year ?: return null
+    val m = month ?: return null
+    val d = day ?: return null
+    return runCatching { LocalDate.of(y, m, d) }.getOrNull()
+}
+
+/**
+ * Number of days between [now] and the concrete date represented
+ * by this FlexibleDateTime.
+ *
+ * - Wildcard deadline (any of year/month/day is null) → 30 (default).
+ * - Past date → 0 (overdue = maximum urgency).
+ * - Today → 0.
+ * - Future date → positive days until that date.
+ */
+fun FlexibleDateTime.daysUntil(now: LocalDate = LocalDate.now()): Int {
+    val concreteDate = toConcreteDateOrNull() ?: return 30
+    val days = ChronoUnit.DAYS.between(now, concreteDate).toInt()
+    return days.coerceAtLeast(0)
 }

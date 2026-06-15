@@ -59,5 +59,8 @@ data class Task(
     val reminders: List<Reminder> = emptyList(),
 
     val isCompleted: Boolean = false,
-    val color: Color = Color.White
+    val color: Color = Color.White,
+
+    /** Estimated effort: 1 (trivial) to 5 (heavy). Default is medium (3). */
+    val cost: Int = 3
 )
