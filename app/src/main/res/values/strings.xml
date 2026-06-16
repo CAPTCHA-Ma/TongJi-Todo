@@ -94,6 +94,7 @@
     <!-- Home FAB quick actions -->
     <string name="home_menu_language">Language</string>
     <string name="home_menu_timetable">Timetable</string>
+    <string name="home_menu_exams">Exams</string>
     <string name="home_menu_canvas">Canvas</string>
 
     <!-- Month names (arrays) -->
@@ -149,4 +150,20 @@
     <string name="tongji_recognized_courses">%1$d courses detected</string>
     <string name="tongji_recognized_courses_need_start">%1$d courses detected. Confirm Monday of Week 1 before importing.</string>
     <string name="tongji_saved_course_schedules">%1$d course schedules saved</string>
+
+    <!-- Tongji exam import -->
+    <string name="tongji_exam_import_screen_title">Tongji Exams Import</string>
+    <string name="tongji_exam_open_page">Opening Tongji exams page</string>
+    <string name="tongji_exam_parsing">Parsing exams...</string>
+    <string name="tongji_exam_waiting">Waiting for exam data</string>
+    <string name="tongji_exam_empty_error">No exams with course name and start time were detected. Make sure you are on the student exam enquiries page and try again.</string>
+    <string name="tongji_exam_invalid_error">Exams were detected but valid start times are missing, so tasks could not be created.</string>
+    <string name="tongji_exam_parse_failed_error">Failed to parse exams. Refresh the page and try again.</string>
+    <string name="tongji_exam_import_complete">Exam import complete</string>
+    <string name="tongji_exam_reload_page">Reload exams page</string>
+    <string name="tongji_exam_login_then_import">After logging in, tap Import Exams at the bottom right</string>
+    <string name="tongji_exam_local_only">Exam data is parsed only on this device</string>
+    <string name="tongji_exam_refresh">Refresh</string>
+    <string name="tongji_exam_import_button_text">Import Exams</string>
+    <string name="tongji_exam_saved_tasks">%1$d exam tasks saved</string>
 </resources>

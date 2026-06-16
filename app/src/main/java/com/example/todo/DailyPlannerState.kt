@@ -65,6 +65,9 @@ class DailyPlannerState(
     /** Whether the Tongji timetable import WebView flow is open. */
     var isTongjiImportOpen by mutableStateOf(false)
 
+    /** Whether the Tongji exam import WebView flow is open. */
+    var isTongjiExamImportOpen by mutableStateOf(false)
+
     // ── day navigation ────────────────────────────────────────────
 
     /** 0 = today, 1 = tomorrow, 2 = day after tomorrow */
@@ -136,9 +139,23 @@ class DailyPlannerState(
         isTongjiImportOpen = false
     }
 
+    fun openTongjiExamImport() {
+        isTongjiExamImportOpen = true
+    }
+
+    fun closeTongjiExamImport() {
+        isTongjiExamImportOpen = false
+    }
+
     fun importTongjiCourseSchedules(schedules: List<Schedule>) {
         if (schedules.isNotEmpty()) {
             updateStore(itemStore.replaceTongjiCourseSchedules(schedules))
+        }
+    }
+
+    fun importTongjiExamTasks(tasks: List<Task>) {
+        if (tasks.isNotEmpty()) {
+            updateStore(itemStore.replaceTongjiExamTasks(tasks))
         }
     }
 

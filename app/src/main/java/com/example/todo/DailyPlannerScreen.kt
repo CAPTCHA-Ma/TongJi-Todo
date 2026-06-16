@@ -103,7 +103,8 @@ fun DailyPlannerScreen() {
             state.isTaskPreviewOpen ||
             state.isCreateItemOpen ||
             isCanvasSyncOpen ||
-            state.isTongjiImportOpen
+            state.isTongjiImportOpen ||
+            state.isTongjiExamImportOpen
         val overlayBlurRadius by animateDpAsState(
             targetValue = if (isOverlayOpen || isFabMenuOpen) 12.dp else 0.dp,
             animationSpec = tween(durationMillis = 170, easing = FastOutSlowInEasing),
@@ -297,6 +298,10 @@ fun DailyPlannerScreen() {
                     isFabMenuOpen = false
                     state.openTongjiImport()
                 },
+                onExamsClick = {
+                    isFabMenuOpen = false
+                    state.openTongjiExamImport()
+                },
                 onCanvasClick = {
                     isFabMenuOpen = false
                     isCanvasSyncOpen = true
@@ -461,6 +466,24 @@ fun DailyPlannerScreen() {
         }
 
         AnimatedVisibility(
+            visible = state.isTongjiExamImportOpen,
+            enter = slideInVertically(
+                animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                initialOffsetY = { it }
+            ) + fadeIn(tween(durationMillis = 120)),
+            exit = slideOutVertically(
+                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                targetOffsetY = { it }
+            ) + fadeOut(tween(durationMillis = 90)),
+            modifier = Modifier.zIndex(39f)
+        ) {
+            TongjiExamImportWebViewScreen(
+                onClose = state::closeTongjiExamImport,
+                onImportTasks = state::importTongjiExamTasks
+            )
+        }
+
+        AnimatedVisibility(
             visible = isCanvasSyncOpen,
             enter = slideInVertically(
                 animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
@@ -518,6 +541,7 @@ private fun FabQuickActionMenu(
     visible: Boolean,
     onLanguageClick: () -> Unit,
     onTimetableClick: () -> Unit,
+    onExamsClick: () -> Unit,
     onCanvasClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -547,6 +571,11 @@ private fun FabQuickActionMenu(
                 label = stringResource(R.string.home_menu_timetable),
                 icon = Icons.Filled.Event,
                 onClick = onTimetableClick
+            )
+            FabQuickActionButton(
+                label = stringResource(R.string.home_menu_exams),
+                icon = Icons.Filled.Event,
+                onClick = onExamsClick
             )
             FabQuickActionButton(
                 label = stringResource(R.string.home_menu_canvas),

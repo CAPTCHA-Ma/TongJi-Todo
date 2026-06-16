@@ -81,6 +81,11 @@ data class PlannerItemStore(
             schedules.fold(store) { currentStore, schedule -> currentStore.addSchedule(schedule) }
         }
 
+    fun replaceTongjiExamTasks(tasks: List<Task>): PlannerItemStore =
+        withoutTongjiExamTasks().let { store ->
+            tasks.fold(store) { currentStore, task -> currentStore.addTask(task) }
+        }
+
     fun upsertCanvasAssignmentTasks(tasks: List<Task>): PlannerItemStore =
         tasks.fold(this) { store, task ->
             val existing = store.storedTasks().firstOrNull { it.id == task.id }
@@ -116,6 +121,14 @@ data class PlannerItemStore(
             .map { it.id }
             .toSet()
         return deleteSchedules(tongjiScheduleIds).deleteTasks(tongjiTaskIds)
+    }
+
+    private fun withoutTongjiExamTasks(): PlannerItemStore {
+        val tongjiExamTaskIds = storedTasks()
+            .filter { it.isTongjiExamTask() }
+            .map { it.id }
+            .toSet()
+        return deleteTasks(tongjiExamTaskIds)
     }
 
     private fun insertSchedule(schedule: Schedule): PlannerItemStore {

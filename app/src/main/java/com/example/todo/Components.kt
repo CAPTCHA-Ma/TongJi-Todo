@@ -1388,7 +1388,11 @@ private fun Any.detailTitle(): String = when (this) {
 
 private fun Any.detailTypeLabel(): String = when (this) {
     is Schedule -> if (isTongjiCourseSchedule()) TongjiCourseType else "Schedule"
-    is Task -> if (isTongjiCourseTask()) TongjiCourseType else "Task"
+    is Task -> when {
+        isTongjiCourseTask() -> TongjiCourseType
+        isTongjiExamTask() -> TongjiExamType
+        else -> "Task"
+    }
     else -> "Item"
 }
 
