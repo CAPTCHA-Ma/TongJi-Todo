@@ -49,6 +49,31 @@ class ReminderSchedulerTest {
     }
 
     @Test
+    fun concreteReminderWhoseMinuteMatchesNowIsNotScheduled() {
+        val now = LocalDateTime.of(2026, 6, 15, 9, 0, 30)
+        val reminder = FlexibleDateTime(
+            year = 2026,
+            month = 6,
+            day = 15,
+            hour = 9,
+            minute = 0
+        )
+
+        assertNull(reminder.nextReminderOccurrenceAfter(now))
+    }
+
+    @Test
+    fun recurringReminderWhoseMinuteMatchesNowResolvesToTomorrow() {
+        val now = LocalDateTime.of(2026, 6, 15, 9, 0, 30)
+        val reminder = FlexibleDateTime(hour = 9, minute = 0)
+
+        assertEquals(
+            LocalDateTime.of(2026, 6, 16, 9, 0),
+            reminder.nextReminderOccurrenceAfter(now)
+        )
+    }
+
+    @Test
     fun reminderWithoutSpecificMinuteIsNotScheduled() {
         val now = LocalDateTime.of(2026, 6, 15, 9, 30)
         val reminder = FlexibleDateTime(hour = 10)

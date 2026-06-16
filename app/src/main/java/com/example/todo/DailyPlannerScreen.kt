@@ -32,12 +32,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -56,6 +57,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -64,6 +67,110 @@ import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+private const val HomeVisibleCardCount = 3
+private val HomeFabSize = 62.dp
+private val HomeFabBottomPadding = 12.dp
+private val HomeFabMenuBottomPadding = 86.dp
+
+private data class HomeLayoutMetrics(
+    val horizontalPadding: Dp,
+    val topSpacer: Dp,
+    val dateHeaderHeight: Dp,
+    val dateHeaderTopPadding: Dp,
+    val dateHeaderBottomPadding: Dp,
+    val dateHeaderFontSize: TextUnit,
+    val afterDateSpacing: Dp,
+    val sectionTitleHeight: Dp,
+    val sectionTitleToCardsSpacing: Dp,
+    val cardHeight: Dp,
+    val cardSpacing: Dp,
+    val hintHeight: Dp,
+    val bottomReserve: Dp
+)
+
+private fun calculateHomeLayoutMetrics(
+    availableWidth: Dp,
+    availableHeight: Dp
+): HomeLayoutMetrics {
+    val width = availableWidth.coerceAtLeast(1.dp)
+    val height = availableHeight.coerceAtLeast(1.dp)
+    val compact = height < 740.dp
+    val tiny = height < 680.dp
+
+    val horizontalPadding = (width * 0.064f).coerceIn(
+        minimumValue = 20.dp,
+        maximumValue = 32.dp
+    )
+    val topSpacer = (height * 0.022f).coerceIn(
+        minimumValue = if (tiny) 10.dp else 14.dp,
+        maximumValue = if (compact) 20.dp else 28.dp
+    )
+    val dateHeaderHeight = (height * 0.205f).coerceIn(
+        minimumValue = if (tiny) 122.dp else 140.dp,
+        maximumValue = 232.dp
+    )
+    val afterDateSpacing = (height * 0.006f).coerceIn(3.dp, 8.dp)
+    val sectionTitleHeight = (height * 0.024f).coerceIn(
+        minimumValue = if (compact) 20.dp else 22.dp,
+        maximumValue = 26.dp
+    )
+    val sectionTitleToCardsSpacing = (height * 0.009f).coerceIn(6.dp, 10.dp)
+    val cardSpacing = (height * 0.009f).coerceIn(
+        minimumValue = if (compact) 5.dp else 6.dp,
+        maximumValue = 10.dp
+    )
+    val hintHeight = (height * 0.03f).coerceIn(
+        minimumValue = if (compact) 20.dp else 24.dp,
+        maximumValue = 34.dp
+    )
+    val minimumBottomReserve = HomeFabSize + HomeFabBottomPadding + if (compact) 2.dp else 8.dp
+    val bottomReserve = (height * 0.082f).coerceIn(
+        minimumValue = minimumBottomReserve,
+        maximumValue = 102.dp
+    )
+    val dateFontSize = (height.value * 0.182f).coerceIn(
+        minimumValue = if (tiny) 104f else 116f,
+        maximumValue = 154f
+    ).sp
+
+    val fixedHeight = topSpacer +
+        dateHeaderHeight +
+        afterDateSpacing +
+        sectionTitleHeight * 2f +
+        sectionTitleToCardsSpacing * 2f +
+        cardSpacing * 4f +
+        hintHeight * 2f +
+        bottomReserve
+    val cardHeight = ((height - fixedHeight) / (HomeVisibleCardCount * 2).toFloat()).coerceIn(
+        minimumValue = if (tiny) 42.dp else 48.dp,
+        maximumValue = 92.dp
+    )
+    val measuredHeight = fixedHeight + cardHeight * (HomeVisibleCardCount * 2).toFloat()
+    val extraHeight = (height - measuredHeight).coerceAtLeast(0.dp)
+
+    return HomeLayoutMetrics(
+        horizontalPadding = horizontalPadding,
+        topSpacer = topSpacer + extraHeight * 0.04f,
+        dateHeaderHeight = dateHeaderHeight + extraHeight * 0.08f,
+        dateHeaderTopPadding = (height * 0.01f).coerceIn(
+            minimumValue = 6.dp,
+            maximumValue = 14.dp
+        ),
+        dateHeaderBottomPadding = (height * 0.018f).coerceIn(
+            minimumValue = 10.dp,
+            maximumValue = 22.dp
+        ),
+        dateHeaderFontSize = dateFontSize,
+        afterDateSpacing = afterDateSpacing,
+        sectionTitleHeight = sectionTitleHeight,
+        sectionTitleToCardsSpacing = sectionTitleToCardsSpacing,
+        cardHeight = cardHeight,
+        cardSpacing = cardSpacing,
+        hintHeight = hintHeight,
+        bottomReserve = bottomReserve + extraHeight * 0.88f
+    )
+}
 
 /**
  * Multi-day planner screen that displays schedules and recommended tasks
@@ -160,9 +267,12 @@ fun DailyPlannerScreen() {
             animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing),
             label = "TaskDetailDepthAlpha"
         )
-        val plannerCardSpacing = 8.dp
-        val plannerCardHeight = ((maxHeight - 388.dp - plannerCardSpacing * 4f) / 6f)
-            .coerceIn(66.dp, 72.dp)
+        val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        val navigationBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        val homeLayout = calculateHomeLayoutMetrics(
+            availableWidth = maxWidth,
+            availableHeight = maxHeight - statusBarTop - navigationBarBottom
+        )
         BackHandler(enabled = isFabMenuOpen && !isOverlayOpen) {
             isFabMenuOpen = false
         }
@@ -179,92 +289,12 @@ fun DailyPlannerScreen() {
                         edgeTreatment = BlurredEdgeTreatment.Rectangle
                     )
             ) {
-            Spacer(modifier = Modifier.height(44.dp))
-
-            // Date header uses the full screen width so the navigation
-            // triangles can reach the true viewport edges.
-            SwipeableDateHeader(
-                dateText = state.currentDateLabel,
-                canSwipeLeft = state.canGoToPreviousDay,
-                canSwipeRight = state.canGoToNextDay,
-                onSwipeLeft = state::goToPreviousDay,
-                onSwipeRight = state::goToNextDay
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // ── Schedule section ──────────────────────────────────
-            // The entire schedule area (header + cards) responds to swipe-up.
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 28.dp)
-                    .pointerInput(Unit) {
-                        detectVerticalDragGestures { _, dragAmount ->
-                            if (dragAmount < -20) {
-                                state.isFullDayPreviewOpen = true
-                            }
-                        }
-                    }
-            ) {
-                SectionTitle(stringResource(R.string.schedule_section))
-                Spacer(modifier = Modifier.height(8.dp))
-
-                PlannerCardStack(
-                    items = state.schedules,
-                    itemKey = { it.id },
-                    modifier = Modifier.fillMaxWidth(),
-                    cardHeight = plannerCardHeight,
-                    cardSpacing = plannerCardSpacing
-                ) { schedule, cardModifier ->
-                    ScheduleCard(
-                        schedule = schedule,
-                        onClick = { state.selectItem(schedule) },
-                        modifier = cardModifier,
-                        fillMaxHeight = true
-                    )
-                }
+                PlannerHomeContent(
+                    state = state,
+                    layout = homeLayout,
+                    modifier = Modifier.fillMaxSize()
+                )
             }
-
-            SwipeUpHint()
-
-            // ── Tasks section ─────────────────────────────────────
-            Column(
-                modifier = Modifier
-                    .padding(horizontal = 28.dp)
-                    .pointerInput(Unit) {
-                        detectVerticalDragGestures { _, dragAmount ->
-                            if (dragAmount < -20) {
-                                state.isTaskPreviewOpen = true
-                            }
-                        }
-                    }
-            ) {
-                SectionTitle(stringResource(R.string.task_section))
-                Spacer(modifier = Modifier.height(8.dp))
-
-                PlannerCardStack(
-                    items = state.recommendedTasks,
-                    itemKey = { it.id },
-                    modifier = Modifier.fillMaxWidth(),
-                    cardHeight = plannerCardHeight,
-                    cardSpacing = plannerCardSpacing
-                ) { task, cardModifier ->
-                    TaskCard(
-                        task = task,
-                        onComplete = { completedTask ->
-                            state.completeTask(completedTask)
-                        },
-                        onClick = { state.selectItem(task) },
-                        modifier = cardModifier,
-                        fillMaxHeight = true
-                    )
-                }
-            }
-
-            SwipeUpHint()
-            Spacer(modifier = Modifier.height(28.dp))
-        }
 
             // White scrim — lifts brightness of the blurred content
             // so large dark text doesn't bleed through as muddy smudges.
@@ -309,7 +339,7 @@ fun DailyPlannerScreen() {
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
-                    .padding(bottom = 86.dp)
+                    .padding(bottom = HomeFabMenuBottomPadding)
                     .zIndex(4f)
             )
 
@@ -329,7 +359,7 @@ fun DailyPlannerScreen() {
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
-                    .padding(bottom = 12.dp)
+                    .padding(bottom = HomeFabBottomPadding)
                     .zIndex(5f)
             )
 
@@ -389,6 +419,7 @@ fun DailyPlannerScreen() {
                 activeTasks = state.allTasks,
                 completedTasks = state.allCompletedTasks,
                 dateLabel = stringResource(R.string.all_dates),
+                contentVersion = state.contentVersion,
                 currentDate = state.currentDate,
                 onClose = { state.isTaskPreviewOpen = false },
                 onTaskClick = { task -> state.selectItem(task) },
@@ -524,16 +555,133 @@ fun DailyPlannerScreen() {
 }
 
 @Composable
-private fun SectionTitle(title: String) {
-    Text(
-        text = title,
-        color = Color.Black,
-        fontSize = 14.sp,
-        fontWeight = FontWeight.ExtraBold,
-        letterSpacing = 1.5.sp,
-        modifier = Modifier.fillMaxWidth(),
-        textAlign = TextAlign.Center
-    )
+private fun PlannerHomeContent(
+    state: DailyPlannerState,
+    layout: HomeLayoutMetrics,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .statusBarsPadding()
+            .navigationBarsPadding()
+    ) {
+        Spacer(modifier = Modifier.height(layout.topSpacer))
+
+        SwipeableDateHeader(
+            dateText = state.currentDateLabel,
+            canSwipeLeft = state.canGoToPreviousDay,
+            canSwipeRight = state.canGoToNextDay,
+            onSwipeLeft = state::goToPreviousDay,
+            onSwipeRight = state::goToNextDay,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(layout.dateHeaderHeight),
+            dateFontSize = layout.dateHeaderFontSize,
+            topPadding = layout.dateHeaderTopPadding,
+            bottomPadding = layout.dateHeaderBottomPadding
+        )
+
+        Spacer(modifier = Modifier.height(layout.afterDateSpacing))
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = layout.horizontalPadding)
+                .pointerInput(Unit) {
+                    detectVerticalDragGestures { _, dragAmount ->
+                        if (dragAmount < -20) {
+                            state.isFullDayPreviewOpen = true
+                        }
+                    }
+                }
+        ) {
+            SectionTitle(
+                title = stringResource(R.string.schedule_section),
+                modifier = Modifier.height(layout.sectionTitleHeight)
+            )
+            Spacer(modifier = Modifier.height(layout.sectionTitleToCardsSpacing))
+
+            PlannerCardStack(
+                items = state.schedules,
+                itemKey = { it.id },
+                modifier = Modifier.fillMaxWidth(),
+                maxVisibleItems = HomeVisibleCardCount,
+                cardHeight = layout.cardHeight,
+                cardSpacing = layout.cardSpacing
+            ) { schedule, cardModifier ->
+                ScheduleCard(
+                    schedule = schedule,
+                    onClick = { state.selectItem(schedule) },
+                    modifier = cardModifier,
+                    fillMaxHeight = true
+                )
+            }
+        }
+
+        SwipeUpHint(height = layout.hintHeight)
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = layout.horizontalPadding)
+                .pointerInput(Unit) {
+                    detectVerticalDragGestures { _, dragAmount ->
+                        if (dragAmount < -20) {
+                            state.isTaskPreviewOpen = true
+                        }
+                    }
+                }
+        ) {
+            SectionTitle(
+                title = stringResource(R.string.task_section),
+                modifier = Modifier.height(layout.sectionTitleHeight)
+            )
+            Spacer(modifier = Modifier.height(layout.sectionTitleToCardsSpacing))
+
+            PlannerCardStack(
+                items = state.recommendedTasks,
+                itemKey = { it.id },
+                modifier = Modifier.fillMaxWidth(),
+                maxVisibleItems = HomeVisibleCardCount,
+                cardHeight = layout.cardHeight,
+                cardSpacing = layout.cardSpacing
+            ) { task, cardModifier ->
+                TaskCard(
+                    task = task,
+                    onComplete = { completedTask ->
+                        state.completeTask(completedTask)
+                    },
+                    onClick = { state.selectItem(task) },
+                    modifier = cardModifier,
+                    fillMaxHeight = true
+                )
+            }
+        }
+
+        SwipeUpHint(height = layout.hintHeight)
+        Spacer(modifier = Modifier.height(layout.bottomReserve))
+    }
+}
+
+@Composable
+private fun SectionTitle(
+    title: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = title,
+            color = Color.Black,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 1.5.sp,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center
+        )
+    }
 }
 
 @Composable
@@ -558,7 +706,7 @@ private fun FabQuickActionMenu(
         modifier = modifier
     ) {
         Column(
-            modifier = Modifier.width(188.dp),
+            modifier = Modifier.width(160.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -569,12 +717,12 @@ private fun FabQuickActionMenu(
             )
             FabQuickActionButton(
                 label = stringResource(R.string.home_menu_timetable),
-                icon = Icons.Filled.Event,
+                icon = Icons.Filled.School,
                 onClick = onTimetableClick
             )
             FabQuickActionButton(
                 label = stringResource(R.string.home_menu_exams),
-                icon = Icons.Filled.Event,
+                icon = Icons.AutoMirrored.Filled.Assignment,
                 onClick = onExamsClick
             )
             FabQuickActionButton(
@@ -604,7 +752,7 @@ private fun FabQuickActionButton(
                 indication = null,
                 onClick = onClick
             )
-            .padding(start = 12.dp, end = 16.dp),
+            .padding(start = 12.dp, end = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(

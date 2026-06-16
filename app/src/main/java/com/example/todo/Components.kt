@@ -364,7 +364,10 @@ fun SwipeableDateHeader(
     canSwipeRight: Boolean,
     onSwipeLeft: () -> Unit,
     onSwipeRight: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    dateFontSize: TextUnit = 148.sp,
+    topPadding: Dp = 40.dp,
+    bottomPadding: Dp = 20.dp
 ) {
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
@@ -414,7 +417,7 @@ fun SwipeableDateHeader(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = 40.dp, bottom = 20.dp)
+            .padding(top = topPadding, bottom = bottomPadding)
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
                     onDragStart = { isDragging = true },
@@ -472,7 +475,7 @@ fun SwipeableDateHeader(
         Text(
             text = dateText,
             style = TextStyle(
-                fontSize = 148.sp,
+                fontSize = dateFontSize,
                 fontFamily = ChappaBlack,
                 fontWeight = FontWeight.Black,
                 color = Color.Black,
@@ -640,6 +643,7 @@ fun TaskCard(
         val configuration = LocalConfiguration.current
         val scope = rememberCoroutineScope()
         val direction = if (completed) -1f else 1f
+        val dragActivationPx = with(density) { 8.dp.toPx() }
         val dismissThresholdPx = with(density) { 96.dp.toPx() }
         val dismissDistancePx = with(density) { (configuration.screenWidthDp.dp + 96.dp).toPx() }
         var dragOffsetPx by remember(task.id, completed) { mutableFloatStateOf(0f) }
@@ -664,48 +668,61 @@ fun TaskCard(
             }
         }
 
-        val swipeModifier = Modifier.pointerInput(task.id, completed, dismissThresholdPx, dismissDistancePx) {
-            detectHorizontalDragGestures(
-                onDragStart = {
-                    if (!actionSubmitted) {
-                        offsetAnimationJob?.cancel()
-                    }
-                },
-                onDragCancel = {
-                    if (!actionSubmitted) {
-                        animateOffsetTo(0f)
-                    }
-                },
-                onDragEnd = {
-                    if (actionSubmitted) return@detectHorizontalDragGestures
+        val swipeModifier = Modifier.pointerInput(
+            task.id,
+            completed,
+            dragActivationPx,
+            dismissThresholdPx,
+            dismissDistancePx
+        ) {
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                if (actionSubmitted) return@awaitEachGesture
 
-                    val reachedThreshold = dragOffsetPx * direction >= dismissThresholdPx
-                    if (reachedThreshold) {
-                        actionSubmitted = true
-                        animateOffsetTo(direction * dismissDistancePx) {
-                            if (completed) {
-                                onRestore(task)
-                            } else {
-                                onComplete(task)
-                            }
+                offsetAnimationJob?.cancel()
+                val startOffset = dragOffsetPx
+                var horizontalDragStarted = false
+
+                do {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                    val totalX = change.position.x - down.position.x
+                    val totalY = change.position.y - down.position.y
+                    val directedTotalX = totalX * direction
+                    val mostlyHorizontal = abs(totalX) > abs(totalY) * 0.6f
+
+                    if (!horizontalDragStarted) {
+                        horizontalDragStarted =
+                            directedTotalX > dragActivationPx && mostlyHorizontal
+                    }
+
+                    if (horizontalDragStarted) {
+                        val nextOffset = startOffset + totalX
+                        dragOffsetPx = if (completed) {
+                            nextOffset.coerceAtMost(0f)
+                        } else {
+                            nextOffset.coerceAtLeast(0f)
                         }
-                    } else {
-                        animateOffsetTo(0f)
+                        change.consume()
                     }
-                },
-                onHorizontalDrag = { change, dragAmount ->
-                    if (actionSubmitted) return@detectHorizontalDragGestures
+                } while (event.changes.any { it.pressed })
 
-                    offsetAnimationJob?.cancel()
-                    val nextOffset = dragOffsetPx + dragAmount
-                    dragOffsetPx = if (completed) {
-                        nextOffset.coerceAtMost(0f)
-                    } else {
-                        nextOffset.coerceAtLeast(0f)
+                if (actionSubmitted) return@awaitEachGesture
+
+                val reachedThreshold = dragOffsetPx * direction >= dismissThresholdPx
+                if (horizontalDragStarted && reachedThreshold) {
+                    actionSubmitted = true
+                    animateOffsetTo(direction * dismissDistancePx) {
+                        if (completed) {
+                            onRestore(task)
+                        } else {
+                            onComplete(task)
+                        }
                     }
-                    change.consume()
+                } else {
+                    animateOffsetTo(0f)
                 }
-            )
+            }
         }
 
         Box(

@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -22,8 +23,13 @@ class PlannerReminderScheduler(
         ReminderNotification.ensureChannel(appContext)
         cancelScheduledAlarms()
 
-        val specs = store.reminderAlarmSpecs(appContext, LocalDateTime.now())
-        specs.forEach(::schedule)
+        val now = LocalDateTime.now()
+        val specs = store.reminderAlarmSpecs(appContext, now)
+        Log.d(TAG, "Syncing ${specs.size} alarms at $now")
+        specs.forEach { spec ->
+            Log.d(TAG, "  Alarm: key=${spec.key}, triggerAt=${spec.triggerAt}")
+            schedule(spec)
+        }
 
         preferences.edit()
             .putStringSet(ScheduledKeys, specs.map { it.key }.toSet())
@@ -31,52 +37,88 @@ class PlannerReminderScheduler(
     }
 
     private fun schedule(spec: ReminderAlarmSpec) {
-        val alarmManager = appContext.getSystemService(AlarmManager::class.java) ?: return
+        val alarmManager = appContext.getSystemService(AlarmManager::class.java) ?: run {
+            Log.e(TAG, "AlarmManager is null, cannot schedule alarm")
+            return
+        }
         val triggerMillis = spec.triggerAt
             .atZone(ZoneId.systemDefault())
             .toInstant()
             .toEpochMilli()
 
-        if (triggerMillis <= System.currentTimeMillis()) return
+        if (triggerMillis <= System.currentTimeMillis()) {
+            Log.w(TAG, "Skipping past alarm: key=${spec.key}, triggerAt=${spec.triggerAt}")
+            return
+        }
 
-        val pendingIntent = reminderPendingIntent(
+        // Use FLAG_IMMUTABLE only — FLAG_UPDATE_CURRENT is incompatible with
+        // FLAG_IMMUTABLE on some Android versions and has no effect anyway
+        // (immutable PendingIntents cannot have their extras updated).
+        // Since cancelScheduledAlarms() already cancels and invalidates old
+        // PendingIntents via pendingIntent.cancel(), a fresh one is created here.
+        val pendingIntent = createPendingIntent(
             context = appContext,
             key = spec.key,
             notificationId = spec.notificationId,
             title = spec.title,
-            body = spec.body,
-            flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        ) ?: return
+            body = spec.body
+        ) ?: run {
+            Log.e(TAG, "Failed to create PendingIntent for key=${spec.key}")
+            return
+        }
 
-        val scheduledExactly = runCatching {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
+        val alarmResult = runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (alarmManager.canScheduleExactAlarms()) {
+                    alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent
+                    )
+                    "setExactAndAllowWhileIdle"
+                } else {
+                    alarmManager.setAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent
+                    )
+                    "setAndAllowWhileIdle"
+                }
             } else {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent
+                )
+                "setExactAndAllowWhileIdle(pre-S)"
             }
-        }.isSuccess
+        }
 
-        if (!scheduledExactly) {
+        if (alarmResult.isSuccess) {
+            Log.d(TAG, "Scheduled alarm via ${alarmResult.getOrDefault("?")}: key=${spec.key}, at=${spec.triggerAt}")
+        } else {
+            Log.e(TAG, "Failed to schedule exact alarm, trying inexact fallback: key=${spec.key}")
             runCatching {
-                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent)
+                alarmManager.setAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP, triggerMillis, pendingIntent
+                )
+            }.onSuccess {
+                Log.d(TAG, "Fallback scheduling succeeded: key=${spec.key}")
+            }.onFailure {
+                Log.e(TAG, "Fallback scheduling also failed: key=${spec.key}", it)
             }
         }
     }
 
     private fun cancelScheduledAlarms() {
         val alarmManager = appContext.getSystemService(AlarmManager::class.java) ?: return
-        preferences.getStringSet(ScheduledKeys, emptySet()).orEmpty().forEach { key ->
-            val pendingIntent = reminderPendingIntent(
-                context = appContext,
-                key = key,
-                notificationId = key.notificationId(),
-                title = "",
-                body = "",
-                flags = PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
-            )
+        val keys = preferences.getStringSet(ScheduledKeys, emptySet()).orEmpty()
+        Log.d(TAG, "Cancelling ${keys.size} previously scheduled alarms")
+        keys.forEach { key ->
+            // FLAG_NO_CREATE ensures we only look up existing PendingIntents.
+            // Since the intent data URI includes the key and the request code
+            // is derived from the key, this should match the original exactly.
+            val pendingIntent = createCancelPendingIntent(appContext, key)
             if (pendingIntent != null) {
                 alarmManager.cancel(pendingIntent)
                 pendingIntent.cancel()
+                Log.d(TAG, "Cancelled alarm: key=$key")
+            } else {
+                Log.d(TAG, "No existing PendingIntent found for key=$key (already fired or never created)")
             }
         }
     }
@@ -87,22 +129,26 @@ class PlannerReminderScheduler(
         const val ExtraNotificationId = "extra_notification_id"
         const val ExtraTitle = "extra_title"
         const val ExtraBody = "extra_body"
+        private const val TAG = "PlannerReminderScheduler"
         private const val PreferencesName = "planner_reminders"
         private const val ScheduledKeys = "scheduled_reminder_keys"
 
         fun syncFromStorage(context: Context) {
             val appContext = context.applicationContext
-            val store = PlannerPersistence(appContext).load() ?: return
+            val store = PlannerPersistence(appContext).load()
+            if (store == null) {
+                Log.w(TAG, "No stored data found, skipping alarm sync")
+                return
+            }
             PlannerReminderScheduler(appContext).sync(store)
         }
 
-        private fun reminderPendingIntent(
+        private fun createPendingIntent(
             context: Context,
             key: String,
             notificationId: Int,
             title: String,
-            body: String,
-            flags: Int
+            body: String
         ): PendingIntent? {
             val intent = Intent(context, ReminderReceiver::class.java).apply {
                 action = ActionShowReminder
@@ -112,7 +158,38 @@ class PlannerReminderScheduler(
                 putExtra(ExtraTitle, title)
                 putExtra(ExtraBody, body)
             }
-            return PendingIntent.getBroadcast(context, key.notificationId(), intent, flags)
+            return runCatching {
+                PendingIntent.getBroadcast(
+                    context,
+                    key.notificationId(),
+                    intent,
+                    PendingIntent.FLAG_IMMUTABLE
+                )
+            }.getOrNull()
+        }
+
+        private fun createCancelPendingIntent(
+            context: Context,
+            key: String
+        ): PendingIntent? {
+            val intent = Intent(context, ReminderReceiver::class.java).apply {
+                action = ActionShowReminder
+                data = Uri.parse("todo://reminder/${Uri.encode(key)}")
+                // Extras are not part of PendingIntent matching, but we set them
+                // to satisfy any paranoid platform checks.
+                putExtra(ExtraReminderKey, key)
+                putExtra(ExtraNotificationId, key.notificationId())
+                putExtra(ExtraTitle, "")
+                putExtra(ExtraBody, "")
+            }
+            return runCatching {
+                PendingIntent.getBroadcast(
+                    context,
+                    key.notificationId(),
+                    intent,
+                    PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+                )
+            }.getOrNull()
         }
     }
 }
@@ -214,6 +291,7 @@ private fun FlexibleDateTime.matchesReminderDate(date: LocalDate): Boolean =
 
 private fun String.notificationId(): Int =
     hashCode()
+
 
 private val ReminderTimeFormatter: DateTimeFormatter =
     DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")

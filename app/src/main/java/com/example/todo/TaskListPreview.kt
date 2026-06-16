@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -75,6 +76,7 @@ fun TaskListPreview(
     activeTasks: List<Task>,
     completedTasks: List<Task>,
     dateLabel: String,
+    contentVersion: Int,
     currentDate: LocalDate = LocalDate.now(),
     onClose: () -> Unit,
     onTaskClick: (Task) -> Unit,
@@ -84,13 +86,22 @@ fun TaskListPreview(
     modifier: Modifier = Modifier
 ) {
     val progress = remember { Animatable(0f) }
+    val listState = rememberLazyListState()
     var isDismissing by remember { mutableStateOf(false) }
     var completedExpanded by remember { mutableStateOf(false) }
     var viewMode by remember { mutableStateOf(TaskViewMode.ListView) }
+    var previewActiveTasks by remember { mutableStateOf(activeTasks) }
+    var previewCompletedTasks by remember { mutableStateOf(completedTasks) }
+    var restoredTaskToRevealId by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(contentVersion, activeTasks, completedTasks) {
+        previewActiveTasks = activeTasks
+        previewCompletedTasks = completedTasks
+    }
 
     // ── Calendar view state ──────────────────────────────────────
-    val allTasks = remember(activeTasks, completedTasks) {
-        (activeTasks + completedTasks).distinctBy { it.id }
+    val allTasks = remember(previewActiveTasks, previewCompletedTasks) {
+        (previewActiveTasks + previewCompletedTasks).distinctBy { it.id }
     }
     val tasksByDate = remember(allTasks) {
         allTasks
@@ -112,10 +123,19 @@ fun TaskListPreview(
         if (viewMode == TaskViewMode.CalendarView) selectedDate.toTaskPreviewDateLabel() else dateLabel
 
     fun requestCompleteTask(task: Task) {
+        val completedTask = task.copy(isCompleted = true)
+        previewActiveTasks = previewActiveTasks.filterNot { it.id == task.id }
+        previewCompletedTasks = (listOf(completedTask) + previewCompletedTasks.filterNot { it.id == task.id })
+            .sortedForTaskPreview()
         onCompleteTask(task)
     }
 
     fun requestRestoreTask(task: Task) {
+        val restoredTask = task.copy(isCompleted = false)
+        previewCompletedTasks = previewCompletedTasks.filterNot { it.id == task.id }
+        previewActiveTasks = (listOf(restoredTask) + previewActiveTasks.filterNot { it.id == task.id })
+            .sortedForTaskPreview()
+        restoredTaskToRevealId = task.id
         onRestoreTask(task)
     }
 
@@ -135,6 +155,17 @@ fun TaskListPreview(
         if (isDismissing) {
             progress.animateTo(0f, tween(durationMillis = 160, easing = FastOutSlowInEasing))
             onClose()
+        }
+    }
+
+    LaunchedEffect(viewMode, restoredTaskToRevealId, previewActiveTasks) {
+        val taskId = restoredTaskToRevealId ?: return@LaunchedEffect
+        if (viewMode != TaskViewMode.ListView) return@LaunchedEffect
+
+        val activeIndex = previewActiveTasks.indexOfFirst { it.id == taskId }
+        if (activeIndex >= 0) {
+            listState.animateScrollToItem(activeIndex)
+            restoredTaskToRevealId = null
         }
     }
 
@@ -177,6 +208,7 @@ fun TaskListPreview(
             if (viewMode == TaskViewMode.ListView) {
                 // ── List view (existing Todo behaviour) ───────────
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier
                         .fillMaxSize()
                         .clipToBounds(),
@@ -188,7 +220,7 @@ fun TaskListPreview(
                     ),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    if (activeTasks.isEmpty()) {
+                    if (previewActiveTasks.isEmpty()) {
                         item(key = "empty-active") {
                             TaskPreviewEmptyState(
                                 text = stringResource(R.string.empty_no_active_tasks),
@@ -199,7 +231,7 @@ fun TaskListPreview(
                         }
                     }
 
-                    items(activeTasks, key = { "active-${it.id}" }) { task ->
+                    items(previewActiveTasks, key = { "active-${it.id}" }) { task ->
                         TaskCard(
                             task = task,
                             onComplete = ::requestCompleteTask,
@@ -213,7 +245,7 @@ fun TaskListPreview(
 
                     item(key = "completed-toggle") {
                         CompletedTaskToggle(
-                            count = completedTasks.size,
+                            count = previewCompletedTasks.size,
                             expanded = completedExpanded,
                             onClick = { completedExpanded = !completedExpanded },
                             modifier = Modifier
@@ -223,7 +255,7 @@ fun TaskListPreview(
                     }
 
                     if (completedExpanded) {
-                        if (completedTasks.isEmpty()) {
+                        if (previewCompletedTasks.isEmpty()) {
                             item(key = "completed-empty") {
                                 TaskPreviewEmptyState(
                                     text = stringResource(R.string.empty_no_completed_tasks),
@@ -233,11 +265,11 @@ fun TaskListPreview(
                                 )
                             }
                         } else {
-                            items(completedTasks, key = { "completed-${it.id}" }) { task ->
+                            items(previewCompletedTasks, key = { "completed-${it.id}" }) { task ->
                                 TaskCard(
                                     task = task,
                                     completed = true,
-                                    onComplete = onCompleteTask,
+                                    onComplete = ::requestCompleteTask,
                                     onRestore = ::requestRestoreTask,
                                     onClick = { onTaskClick(task) },
                                     modifier = Modifier
@@ -282,8 +314,8 @@ fun TaskListPreview(
                         selectedDate = selectedDate,
                         tasks = tasksByDate[selectedDate].orEmpty(),
                         onTaskClick = onTaskClick,
-                        onCompleteTask = onCompleteTask,
-                        onRestoreTask = onRestoreTask,
+                        onCompleteTask = ::requestCompleteTask,
+                        onRestoreTask = ::requestRestoreTask,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -899,3 +931,14 @@ private fun List<Task>.sortedForCalendar(): List<Task> =
             { it.title }
         )
     )
+
+private fun List<Task>.sortedForTaskPreview(): List<Task> =
+    distinctBy { it.id }
+        .sortedWith(
+            compareBy(
+                { it.deadline.toConcreteDateOrNull() ?: LocalDate.MAX },
+                { it.deadline.hour ?: Int.MAX_VALUE },
+                { it.deadline.minute ?: Int.MAX_VALUE },
+                { it.title }
+            )
+        )
