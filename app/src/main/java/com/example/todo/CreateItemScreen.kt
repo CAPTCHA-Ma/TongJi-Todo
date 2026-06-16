@@ -223,7 +223,7 @@ fun CreateItemScreen(
         val reminderId = nextDraftId++
         reminders.add(ReminderDraft(id = reminderId, time = defaultTime))
         pickerState = TimePickerState(
-            title = "Reminder ${reminders.size}",
+            title = res.getString(R.string.reminder_label, reminders.size),
             value = defaultTime,
             onValueChange = { newValue ->
                 val index = reminders.indexOfFirst { it.id == reminderId }
@@ -262,7 +262,11 @@ fun CreateItemScreen(
                 Spacer(modifier = Modifier.height(18.dp))
 
                 Text(
-                    text = if (selectedType == CreateItemType.Schedule) "Create Schedule" else "Create Task",
+                    text = if (selectedType == CreateItemType.Schedule) {
+                        stringResource(R.string.create_schedule)
+                    } else {
+                        stringResource(R.string.create_task)
+                    },
                     style = MaterialTheme.typography.headlineMedium.copy(
                         fontWeight = FontWeight.Black,
                         fontSize = 34.sp,
@@ -273,17 +277,21 @@ fun CreateItemScreen(
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                CreateLabel("Title")
+                CreateLabel(stringResource(R.string.label_title))
                 CreateTextField(
                     value = title,
                     onValueChange = { title = it },
-                    placeholder = if (selectedType == CreateItemType.Schedule) "Schedule title" else "Task title",
+                    placeholder = if (selectedType == CreateItemType.Schedule) {
+                        stringResource(R.string.hint_schedule_title)
+                    } else {
+                        stringResource(R.string.hint_task_title)
+                    },
                     singleLine = true
                 )
 
                 Spacer(modifier = Modifier.height(26.dp))
 
-                CreateLabel("Time")
+                CreateLabel(stringResource(R.string.label_time))
                 AnimatedContent(
                     targetState = selectedType,
                     transitionSpec = {
@@ -294,12 +302,12 @@ fun CreateItemScreen(
                     if (type == CreateItemType.Schedule) {
                         Column {
                             PairedTimeRow(
-                                label = "Start",
+                                label = stringResource(R.string.label_start),
                                 time = scheduleStart,
                                 accentColor = accentColor,
                                 onClick = {
                                     pickerState = TimePickerState(
-                                        title = "Start Time",
+                                        title = res.getString(R.string.label_start_time),
                                         value = scheduleStart,
                                         pairValue = scheduleEnd,
                                         onValueChange = { newStart ->
@@ -318,12 +326,12 @@ fun CreateItemScreen(
                             )
                             Spacer(modifier = Modifier.height(10.dp))
                             PairedTimeRow(
-                                label = "End",
+                                label = stringResource(R.string.label_end),
                                 time = scheduleEnd,
                                 accentColor = accentColor,
                                 onClick = {
                                     pickerState = TimePickerState(
-                                        title = "End Time",
+                                        title = res.getString(R.string.label_end_time),
                                         value = scheduleEnd,
                                         pairValue = scheduleStart,
                                         onValueChange = { newEnd ->
@@ -342,12 +350,12 @@ fun CreateItemScreen(
                         }
                     } else {
                         PairedTimeRow(
-                            label = "Deadline",
+                            label = stringResource(R.string.label_deadline),
                             time = taskDeadline,
                             accentColor = accentColor,
                             onClick = {
                                 pickerState = TimePickerState(
-                                    title = "Deadline",
+                                    title = res.getString(R.string.label_deadline),
                                     value = taskDeadline,
                                     onValueChange = {
                                         taskDeadline = it
@@ -361,7 +369,7 @@ fun CreateItemScreen(
 
                 Spacer(modifier = Modifier.height(26.dp))
 
-                CreateLabel("Accent")
+                CreateLabel(stringResource(R.string.label_accent))
                 ColorSwatches(
                     selectedColor = accentColor,
                     onSelect = { accentColor = it }
@@ -369,7 +377,7 @@ fun CreateItemScreen(
 
                 if (selectedType == CreateItemType.Task) {
                     Spacer(modifier = Modifier.height(26.dp))
-                    CreateLabel("Estimated Effort")
+                    CreateLabel(stringResource(R.string.label_estimated_effort))
                     CostSelector(
                         selectedCost = taskCost,
                         onSelect = { taskCost = it }
@@ -379,12 +387,12 @@ fun CreateItemScreen(
                 Spacer(modifier = Modifier.height(30.dp))
 
                 CreateSectionHeader(
-                    title = "Details",
-                    actionText = "New",
+                    title = stringResource(R.string.label_details),
+                    actionText = stringResource(R.string.action_new),
                     onAction = ::addDetail
                 )
                 if (details.isEmpty()) {
-                    EmptyCreateText("No detail fields")
+                    EmptyCreateText(stringResource(R.string.empty_no_detail_fields))
                 } else {
                     Column(
                         modifier = Modifier.animateContentSize(tween(240, easing = FastOutSlowInEasing))
@@ -412,23 +420,23 @@ fun CreateItemScreen(
                 Spacer(modifier = Modifier.height(30.dp))
 
                 CreateSectionHeader(
-                    title = "Reminders",
-                    actionText = "New",
+                    title = stringResource(R.string.label_reminders),
+                    actionText = stringResource(R.string.action_new),
                     onAction = ::addReminder
                 )
                 if (reminders.isEmpty()) {
-                    EmptyCreateText("No reminders")
+                    EmptyCreateText(stringResource(R.string.empty_no_reminders))
                 } else {
                     Column(
                         modifier = Modifier.animateContentSize(tween(240, easing = FastOutSlowInEasing))
                     ) {
                         reminders.forEachIndexed { index, reminder ->
                             ReminderDraftRow(
-                                label = "Reminder ${index + 1}",
+                                label = stringResource(R.string.reminder_label, index + 1),
                                 time = reminder.time,
                                 onClick = {
                                     pickerState = TimePickerState(
-                                        title = "Reminder ${index + 1}",
+                                        title = res.getString(R.string.reminder_label, index + 1),
                                         value = reminder.time,
                                         onValueChange = { newValue ->
                                             val currentIndex = reminders.indexOfFirst { it.id == reminder.id }
@@ -475,7 +483,7 @@ private fun CreateTopBar(
     ) {
         IconCircleButton(
             icon = Icons.Filled.Close,
-            contentDescription = "Close",
+            contentDescription = stringResource(R.string.cd_close),
             onClick = onClose
         )
         Spacer(modifier = Modifier.width(14.dp))
@@ -487,7 +495,7 @@ private fun CreateTopBar(
         Spacer(modifier = Modifier.width(14.dp))
         IconCircleButton(
             icon = Icons.Filled.Check,
-            contentDescription = "Save",
+            contentDescription = stringResource(R.string.cd_save),
             onClick = onSave,
             filled = true
         )
@@ -542,7 +550,11 @@ private fun TypeSegmentedControl(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = if (type == CreateItemType.Schedule) "Schedule" else "Task",
+                    text = if (type == CreateItemType.Schedule) {
+                        stringResource(R.string.type_schedule)
+                    } else {
+                        stringResource(R.string.type_task)
+                    },
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Black,
                     color = contentColor,
@@ -890,7 +902,7 @@ private fun DetailDraftRow(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "Field",
+                text = stringResource(R.string.detail_field),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Black,
                 color = Color.Black.copy(alpha = 0.52f),
@@ -898,7 +910,7 @@ private fun DetailDraftRow(
             )
             Icon(
                 imageVector = Icons.Filled.Delete,
-                contentDescription = "Remove detail",
+                contentDescription = stringResource(R.string.cd_remove_detail),
                 tint = Color.Black.copy(alpha = 0.55f),
                 modifier = Modifier
                     .size(34.dp)
@@ -918,7 +930,7 @@ private fun DetailDraftRow(
             CreateTextField(
                 value = detail.head,
                 onValueChange = onHeadChange,
-                placeholder = "Head",
+                placeholder = stringResource(R.string.hint_head),
                 singleLine = true,
                 minHeight = 52.dp,
                 modifier = Modifier.weight(0.9f)
@@ -926,7 +938,7 @@ private fun DetailDraftRow(
             CreateTextField(
                 value = detail.info,
                 onValueChange = onInfoChange,
-                placeholder = "Info",
+                placeholder = stringResource(R.string.hint_info),
                 minHeight = 52.dp,
                 modifier = Modifier.weight(1.4f)
             )
@@ -984,7 +996,7 @@ private fun ReminderDraftRow(
         }
         Icon(
             imageVector = Icons.Filled.Delete,
-            contentDescription = "Remove reminder",
+            contentDescription = stringResource(R.string.cd_remove_reminder),
             tint = Color.Black.copy(alpha = 0.55f),
             modifier = Modifier
                 .size(40.dp)
@@ -1100,7 +1112,7 @@ private fun FlexibleDateTimePickerPanel(
                 }
                 IconCircleButton(
                     icon = Icons.Filled.Check,
-                    contentDescription = "Done",
+                    contentDescription = stringResource(R.string.cd_done),
                     onClick = onDismiss,
                     filled = true
                 )
@@ -1367,4 +1379,6 @@ private fun FlexibleDateTime.toCreatorSummary(): String {
 
 @Composable
 private fun monthName(month: Int): String =
-    java.time.Month.of(month).getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH)
+    LocalContext.current.resources
+        .getStringArray(R.array.month_names_short)
+        .getOrElse(month - 1) { month.toString() }

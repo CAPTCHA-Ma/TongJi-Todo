@@ -87,18 +87,6 @@ class DailyPlannerState(
 
     // ── date labels ───────────────────────────────────────────────
 
-    /** Pre-computed formatted date labels for the three-day window. */
-    val dateLabels: List<String> = run {
-        val formatter = java.time.format.DateTimeFormatter.ofPattern("MMMdd", java.util.Locale.ENGLISH)
-        (0..2).map { offset ->
-            val date = baseDate.plusDays(offset.toLong())
-            formatter.format(date).uppercase()
-        }
-    }
-
-    /** The date label for the currently selected day offset. */
-    val currentDateLabel: String get() = dateLabels[currentDayOffset]
-
     // ── actions ───────────────────────────────────────────────────
 
     fun completeTask(task: Task) {

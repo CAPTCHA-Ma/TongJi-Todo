@@ -54,6 +54,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -439,14 +440,14 @@ private fun TaskViewModeToggle(
             ) {
                 Icon(
                     imageVector = mode.icon,
-                    contentDescription = if (showLabels) null else mode.title,
+                    contentDescription = if (showLabels) null else taskViewModeTitle(mode),
                     tint = contentColor,
                     modifier = Modifier.size(18.dp)
                 )
                 if (showLabels) {
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = mode.title,
+                        text = taskViewModeTitle(mode),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Black,
                         color = contentColor,
@@ -465,11 +466,11 @@ private val TaskViewMode.icon: ImageVector
         TaskViewMode.CalendarView -> Icons.Filled.DateRange
     }
 
-private val TaskViewMode.title: String
-    get() = when (this) {
-        TaskViewMode.ListView -> "List"
-        TaskViewMode.CalendarView -> "Calendar"
-    }
+@Composable
+private fun taskViewModeTitle(mode: TaskViewMode): String = when (mode) {
+    TaskViewMode.ListView -> stringResource(R.string.task_view_list)
+    TaskViewMode.CalendarView -> stringResource(R.string.task_view_calendar)
+}
 
 private fun LocalDate.toTaskPreviewDateLabel(): String =
     "$year-${monthValue.toString().padStart(2, '0')}-${dayOfMonth.toString().padStart(2, '0')}"
@@ -592,11 +593,9 @@ private fun TaskCalendarMonthHeader(
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit
 ) {
-    val monthTitle = remember(visibleMonth) {
-        val names = listOf(
-            "January", "February", "March", "April", "May", "June",
-            "July", "August", "September", "October", "November", "December"
-        )
+    val resources = LocalContext.current.resources
+    val monthTitle = remember(visibleMonth, resources.configuration) {
+        val names = resources.getStringArray(R.array.month_names)
         "${names.getOrElse(visibleMonth.monthValue - 1) { visibleMonth.monthValue.toString() }} ${visibleMonth.year}"
     }
 
@@ -611,7 +610,7 @@ private fun TaskCalendarMonthHeader(
     ) {
         CalendarNavButton(
             icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-            contentDescription = "Previous month",
+            contentDescription = stringResource(R.string.previous_month),
             onClick = onPreviousMonth
         )
         Text(
@@ -626,7 +625,7 @@ private fun TaskCalendarMonthHeader(
         )
         CalendarNavButton(
             icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = "Next month",
+            contentDescription = stringResource(R.string.next_month),
             onClick = onNextMonth
         )
     }
@@ -667,7 +666,7 @@ private fun TaskCalendarGrid(
     onDateClick: (LocalDate) -> Unit
 ) {
     val calendarCells = remember(visibleMonth) { visibleMonth.calendarCells() }
-    val weekdays = remember { listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun") }
+    val weekdays = LocalContext.current.resources.getStringArray(R.array.weekday_short)
 
     Column(
         modifier = Modifier
@@ -790,8 +789,10 @@ private fun SelectedDateTaskList(
     val activeTasks = remember(tasks) { tasks.filterNot { it.isCompleted }.sortedForCalendar() }
     val completedTasks = remember(tasks) { tasks.filter { it.isCompleted }.sortedForCalendar() }
     val dateTitle = remember(selectedDate) { selectedDate.toTaskPreviewDateLabel() }
-    val taskCountText = remember(tasks.size) {
-        if (tasks.size == 1) "1 task" else "${tasks.size} tasks"
+    val taskCountText = if (tasks.size == 1) {
+        stringResource(R.string.task_count_one)
+    } else {
+        stringResource(R.string.task_count_many, tasks.size)
     }
 
     Column(
@@ -826,7 +827,7 @@ private fun SelectedDateTaskList(
             if (tasks.isEmpty()) {
                 item(key = "empty") {
                     CalendarEmptyState(
-                        text = "No tasks on this date",
+                        text = stringResource(R.string.empty_no_tasks_on_date),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(78.dp)
@@ -835,7 +836,7 @@ private fun SelectedDateTaskList(
             } else {
                 if (activeTasks.isNotEmpty()) {
                     item(key = "active-title") {
-                        CalendarListTitle("Active")
+                        CalendarListTitle(stringResource(R.string.label_active))
                     }
                     items(activeTasks, key = { "cal-active-${it.id}" }) { task ->
                         TaskCard(
@@ -852,7 +853,7 @@ private fun SelectedDateTaskList(
 
                 if (completedTasks.isNotEmpty()) {
                     item(key = "completed-title") {
-                        CalendarListTitle("Completed")
+                        CalendarListTitle(stringResource(R.string.label_completed))
                     }
                     items(completedTasks, key = { "cal-completed-${it.id}" }) { task ->
                         TaskCard(

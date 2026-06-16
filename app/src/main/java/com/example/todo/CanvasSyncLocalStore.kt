@@ -11,14 +11,19 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 class CanvasSyncLocalStore(context: Context) {
-    private val preferences = context.getSharedPreferences(PreferencesName, Context.MODE_PRIVATE)
+    private val appContext = context.applicationContext
+    private val preferences = appContext.getSharedPreferences(PreferencesName, Context.MODE_PRIVATE)
 
     fun hasSavedToken(): Boolean =
         preferences.contains(TokenCipherTextKey) && preferences.contains(TokenIvKey)
 
     fun saveToken(token: String) {
         val normalizedToken = token.trim()
-        require(normalizedToken.isNotBlank()) { "Canvas Token 不能为空。" }
+        require(normalizedToken.isNotBlank()) {
+            appContext
+                .localizedContext(AppLanguageStore.load(appContext))
+                .getString(R.string.canvas_token_empty)
+        }
 
         val cipher = Cipher.getInstance(Transformation)
         cipher.init(Cipher.ENCRYPT_MODE, getOrCreateSecretKey())

@@ -203,14 +203,17 @@ private data class ReminderAlarmSpec(
 )
 
 private fun PlannerItemStore.reminderAlarmSpecs(context: Context, now: LocalDateTime): List<ReminderAlarmSpec> {
+    val textContext = context
+        .applicationContext
+        .localizedContext(AppLanguageStore.load(context.applicationContext))
     val scheduleReminders = storedSchedules().flatMap { schedule ->
         schedule.reminders.mapIndexedNotNull { index, reminder ->
             reminder.toAlarmSpec(
-                context = context,
+                context = textContext,
                 itemType = "schedule",
                 itemId = schedule.id,
                 reminderIndex = index,
-                fallbackTitle = context.getString(R.string.notification_schedule_reminder),
+                fallbackTitle = textContext.getString(R.string.notification_schedule_reminder),
                 itemTitle = schedule.title,
                 now = now
             )
@@ -222,11 +225,11 @@ private fun PlannerItemStore.reminderAlarmSpecs(context: Context, now: LocalDate
         .flatMap { task ->
             task.reminders.mapIndexedNotNull { index, reminder ->
                 reminder.toAlarmSpec(
-                    context = context,
+                    context = textContext,
                     itemType = "task",
                     itemId = task.id,
                     reminderIndex = index,
-                    fallbackTitle = context.getString(R.string.notification_task_reminder),
+                    fallbackTitle = textContext.getString(R.string.notification_task_reminder),
                     itemTitle = task.title,
                     now = now
                 )

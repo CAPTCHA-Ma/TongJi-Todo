@@ -75,6 +75,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -312,7 +313,7 @@ private fun ScheduleTopBar(
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = selectedDate.formatScheduleHeaderDate(),
+                text = selectedDate.formatScheduleHeaderDateText(),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Black,
                 color = Color.Black,
@@ -320,8 +321,7 @@ private fun ScheduleTopBar(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = selectedDate.dayOfWeek.name.lowercase()
-                    .replaceFirstChar { it.uppercase() },
+                text = selectedDate.weekdayDisplayText(),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Black,
                 color = Color.Black.copy(alpha = 0.48f),
@@ -1110,7 +1110,7 @@ private fun DatePickerPanel(
                         color = Color.Black
                     )
                     Text(
-                        text = date.formatScheduleHeaderDate(),
+                        text = date.formatScheduleHeaderDateText(),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         color = Color.Black.copy(alpha = 0.56f),
@@ -1378,9 +1378,23 @@ private fun Schedule.cardTimeRange(): String {
     return listOf(start, end).filter { it.isNotBlank() }.joinToString(" - ")
 }
 
-private fun LocalDate.formatScheduleHeaderDate(): String {
-    val formatter = java.time.format.DateTimeFormatter.ofPattern("MMM dd, yyyy", java.util.Locale.ENGLISH)
-    return formatter.format(this)
+@Composable
+private fun LocalDate.formatScheduleHeaderDateText(): String {
+    val resources = LocalContext.current.resources
+    val monthNames = resources.getStringArray(R.array.month_names_short)
+    val monthText = monthNames.getOrElse(monthValue - 1) { monthValue.toString().padStart(2, '0') }
+    val language = resources.configuration.locales[0]?.language.orEmpty()
+    return if (language.startsWith("zh")) {
+        "${year}年${monthText}${dayOfMonth}日"
+    } else {
+        "$monthText ${dayOfMonth.toString().padStart(2, '0')}, $year"
+    }
+}
+
+@Composable
+private fun LocalDate.weekdayDisplayText(): String {
+    val weekdays = LocalContext.current.resources.getStringArray(R.array.weekday_short)
+    return weekdays.getOrElse(dayOfWeek.value - 1) { dayOfWeek.name }
 }
 
 private fun LocalDate.valueFor(field: ScheduleDateField): Int = when (field) {
@@ -1407,10 +1421,12 @@ private fun buildDateOptions(field: ScheduleDateField, date: LocalDate): List<In
     ScheduleDateField.Day -> (1..YearMonth.of(date.year, date.monthValue).lengthOfMonth()).toList()
 }
 
+@Composable
 private fun Int.formatDateOption(field: ScheduleDateField): String = when (field) {
     ScheduleDateField.Year -> "$this"
-    ScheduleDateField.Month -> java.time.Month.of(this)
-        .getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH)
+    ScheduleDateField.Month -> LocalContext.current.resources
+        .getStringArray(R.array.month_names_short)
+        .getOrElse(this - 1) { toString() }
     ScheduleDateField.Day -> toString().padStart(2, '0')
 }
 

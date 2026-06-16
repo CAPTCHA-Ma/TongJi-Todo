@@ -67,6 +67,7 @@ import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 private const val HomeVisibleCardCount = 3
 private val HomeFabSize = 62.dp
@@ -186,7 +187,10 @@ private fun calculateHomeLayoutMetrics(
 // * Tasks can be swiped right-to-left (start-to-end) to mark them as completed.
  */
 @Composable
-fun DailyPlannerScreen() {
+fun DailyPlannerScreen(
+    appLanguage: AppLanguage = AppLanguage.Chinese,
+    onLanguageSelected: (AppLanguage) -> Unit = {}
+) {
     val appContext = LocalContext.current.applicationContext
     val isPreview = LocalInspectionMode.current
     val state = remember(appContext, isPreview) {
@@ -196,6 +200,7 @@ fun DailyPlannerScreen() {
         )
     }
     var isFabMenuOpen by remember { mutableStateOf(false) }
+    var isLanguagePickerOpen by remember { mutableStateOf(false) }
     var isCanvasSyncOpen by remember { mutableStateOf(false) }
     // ── adaptive card sizing ────────────────────────────────────────
 
@@ -275,9 +280,13 @@ fun DailyPlannerScreen() {
         )
         BackHandler(enabled = isFabMenuOpen && !isOverlayOpen) {
             isFabMenuOpen = false
+            isLanguagePickerOpen = false
         }
         LaunchedEffect(isOverlayOpen) {
-            if (isOverlayOpen) isFabMenuOpen = false
+            if (isOverlayOpen) {
+                isFabMenuOpen = false
+                isLanguagePickerOpen = false
+            }
         }
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
@@ -323,17 +332,27 @@ fun DailyPlannerScreen() {
 
             FabQuickActionMenu(
                 visible = isFabMenuOpen && !isOverlayOpen,
-                onLanguageClick = {},
+                selectedLanguage = appLanguage,
+                languagePickerVisible = isLanguagePickerOpen,
+                onLanguageClick = {
+                    isLanguagePickerOpen = !isLanguagePickerOpen
+                },
+                onLanguageSelected = { language ->
+                    onLanguageSelected(language)
+                },
                 onTimetableClick = {
                     isFabMenuOpen = false
+                    isLanguagePickerOpen = false
                     state.openTongjiImport()
                 },
                 onExamsClick = {
                     isFabMenuOpen = false
+                    isLanguagePickerOpen = false
                     state.openTongjiExamImport()
                 },
                 onCanvasClick = {
                     isFabMenuOpen = false
+                    isLanguagePickerOpen = false
                     isCanvasSyncOpen = true
                 },
                 modifier = Modifier
@@ -349,6 +368,7 @@ fun DailyPlannerScreen() {
                 onClick = {
                     if (isFabMenuOpen) {
                         isFabMenuOpen = false
+                        isLanguagePickerOpen = false
                     } else {
                         state.openCreateItem(CreateItemType.Schedule)
                     }
@@ -568,7 +588,7 @@ private fun PlannerHomeContent(
         Spacer(modifier = Modifier.height(layout.topSpacer))
 
         SwipeableDateHeader(
-            dateText = state.currentDateLabel,
+            dateText = state.currentDate.homeDateHeaderLabel(),
             canSwipeLeft = state.canGoToPreviousDay,
             canSwipeRight = state.canGoToNextDay,
             onSwipeLeft = state::goToPreviousDay,
@@ -577,6 +597,9 @@ private fun PlannerHomeContent(
                 .fillMaxWidth()
                 .height(layout.dateHeaderHeight),
             dateFontSize = layout.dateHeaderFontSize,
+            dateFontFamily = ChappaBlack,
+            dateLetterSpacing = 12.sp,
+            dateMaxWidthFraction = 0.88f,
             topPadding = layout.dateHeaderTopPadding,
             bottomPadding = layout.dateHeaderBottomPadding
         )
@@ -687,7 +710,10 @@ private fun SectionTitle(
 @Composable
 private fun FabQuickActionMenu(
     visible: Boolean,
+    selectedLanguage: AppLanguage,
+    languagePickerVisible: Boolean,
     onLanguageClick: () -> Unit,
+    onLanguageSelected: (AppLanguage) -> Unit,
     onTimetableClick: () -> Unit,
     onExamsClick: () -> Unit,
     onCanvasClick: () -> Unit,
@@ -706,10 +732,26 @@ private fun FabQuickActionMenu(
         modifier = modifier
     ) {
         Column(
-            modifier = Modifier.width(160.dp),
+            modifier = Modifier.width(206.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            AnimatedVisibility(
+                visible = languagePickerVisible,
+                enter = slideInVertically(
+                    animationSpec = tween(durationMillis = 170, easing = FastOutSlowInEasing),
+                    initialOffsetY = { it / 3 }
+                ) + fadeIn(tween(durationMillis = 110)),
+                exit = slideOutVertically(
+                    animationSpec = tween(durationMillis = 130, easing = FastOutSlowInEasing),
+                    targetOffsetY = { it / 3 }
+                ) + fadeOut(tween(durationMillis = 90))
+            ) {
+                LanguageChoiceRow(
+                    selectedLanguage = selectedLanguage,
+                    onLanguageSelected = onLanguageSelected
+                )
+            }
             FabQuickActionButton(
                 label = stringResource(R.string.home_menu_language),
                 icon = Icons.Filled.Language,
@@ -731,6 +773,86 @@ private fun FabQuickActionMenu(
                 onClick = onCanvasClick
             )
         }
+    }
+}
+
+private fun LocalDate.homeDateHeaderLabel(): String {
+    val monthNames = EnglishHomeDateMonthNames
+    val monthText = monthNames.getOrElse(monthValue - 1) { monthValue.toString().padStart(2, '0') }
+    return "$monthText${dayOfMonth.toString().padStart(2, '0')}"
+}
+
+private val EnglishHomeDateMonthNames = listOf(
+    "JAN",
+    "FEB",
+    "MAR",
+    "APR",
+    "MAY",
+    "JUN",
+    "JUL",
+    "AUG",
+    "SEP",
+    "OCT",
+    "NOV",
+    "DEC"
+)
+
+@Composable
+private fun LanguageChoiceRow(
+    selectedLanguage: AppLanguage,
+    onLanguageSelected: (AppLanguage) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        LanguageChoicePill(
+            text = "English",
+            selected = selectedLanguage == AppLanguage.English,
+            onClick = { onLanguageSelected(AppLanguage.English) },
+            modifier = Modifier.weight(1f)
+        )
+        LanguageChoicePill(
+            text = "中文",
+            selected = selectedLanguage == AppLanguage.Chinese,
+            onClick = { onLanguageSelected(AppLanguage.Chinese) },
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun LanguageChoicePill(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val background = if (selected) Color.White else Color(0xFFFFF6E6).copy(alpha = 0.82f)
+    Row(
+        modifier = modifier
+            .height(42.dp)
+            .border(2.dp, Color.Black.copy(alpha = if (selected) 0.42f else 0.18f), RoundedCornerShape(999.dp))
+            .background(background, RoundedCornerShape(999.dp))
+            .clickable(
+                interactionSource = null,
+                indication = null,
+                onClick = onClick
+            )
+            .padding(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            color = Color.Black,
+            fontWeight = FontWeight.Black,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -944,7 +1066,7 @@ private fun CanvasSyncOverlay(
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Canvas Sync",
+                    text = stringResource(R.string.canvas_sync_title),
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontSize = 25.sp,
                         lineHeight = 29.sp
@@ -955,7 +1077,7 @@ private fun CanvasSyncOverlay(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "TOKEN AND ASSIGNMENTS",
+                    text = stringResource(R.string.canvas_overlay_subtitle),
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Black,
                     color = Color.Black.copy(alpha = 0.48f),
@@ -964,7 +1086,11 @@ private fun CanvasSyncOverlay(
                 )
             }
             Text(
-                text = if (currentStore.activeTasks().any { it.isCanvasAssignmentTask() }) "SYNCED" else "READY",
+                text = if (currentStore.activeTasks().any { it.isCanvasAssignmentTask() }) {
+                    stringResource(R.string.canvas_status_synced)
+                } else {
+                    stringResource(R.string.canvas_status_ready)
+                },
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Black,
                 color = Color.White,

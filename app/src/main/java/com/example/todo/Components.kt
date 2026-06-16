@@ -1,6 +1,7 @@
 package com.example.todo
 
 
+import android.content.res.Resources
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -41,6 +42,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -366,6 +368,12 @@ fun SwipeableDateHeader(
     onSwipeRight: () -> Unit,
     modifier: Modifier = Modifier,
     dateFontSize: TextUnit = 148.sp,
+    dateFontFamily: FontFamily = ChappaBlack,
+    dateFontWeight: FontWeight = FontWeight.Black,
+    dateLetterSpacing: TextUnit = 12.sp,
+    fitDateTextToWidth: Boolean = false,
+    dateMaxWidthFraction: Float = 0.88f,
+    clipDateTextToBounds: Boolean = false,
     topPadding: Dp = 40.dp,
     bottomPadding: Dp = 20.dp
 ) {
@@ -414,9 +422,10 @@ fun SwipeableDateHeader(
         }
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
+            .then(if (clipDateTextToBounds) Modifier.clipToBounds() else Modifier)
             .padding(top = topPadding, bottom = bottomPadding)
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
@@ -472,16 +481,38 @@ fun SwipeableDateHeader(
         // Date label — bottom layer, centred.  At 135 sp the text is wider than the
         // screen so it naturally overflows; that is fine as long as the triangles draw
         // on top at the viewport edges.
+        val displayFontSize = if (fitDateTextToWidth) {
+            val maxWidthPx = with(density) { (maxWidth * dateMaxWidthFraction).toPx() }
+            val fontSizePx = with(density) { dateFontSize.toPx() }
+            val letterSpacingPx = with(density) { dateLetterSpacing.toPx() }
+            val characterWidthRatio = 0.92f
+            val gapCount = (dateText.length - 1).coerceAtLeast(0)
+            val estimatedWidthPx = dateText.length * fontSizePx * characterWidthRatio +
+                gapCount * letterSpacingPx
+
+            if (estimatedWidthPx > maxWidthPx) {
+                val fittedPx = ((maxWidthPx - gapCount * letterSpacingPx) /
+                    (dateText.length * characterWidthRatio))
+                    .coerceIn(40f, fontSizePx)
+                with(density) { fittedPx.toSp() }
+            } else {
+                dateFontSize
+            }
+        } else {
+            dateFontSize
+        }
+
         Text(
             text = dateText,
             style = TextStyle(
-                fontSize = dateFontSize,
-                fontFamily = ChappaBlack,
-                fontWeight = FontWeight.Black,
+                fontSize = displayFontSize,
+                fontFamily = dateFontFamily,
+                fontWeight = dateFontWeight,
                 color = Color.Black,
                 textAlign = TextAlign.Center,
-                letterSpacing = 12.sp
+                letterSpacing = dateLetterSpacing
             ),
+            maxLines = 1,
             softWrap = false,
             modifier = Modifier
                 .align(Alignment.Center)
@@ -768,7 +799,11 @@ fun TaskCard(
                         val isCourseTask = task.isTongjiCourseTask()
                         val deadlineReached = !isCourseTask && task.hasReachedDeadline()
                         Text(
-                            text = if (isCourseTask) TongjiCourseType else task.deadline.toSmartString().ifEmpty { "—" },
+                            text = if (isCourseTask) {
+                                stringResource(R.string.type_course)
+                            } else {
+                                task.deadline.toSmartString().ifEmpty { "—" }
+                            },
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = when {
@@ -816,13 +851,17 @@ fun DetailPreview(
     var isDismissing by remember { mutableStateOf(false) }
     var deleteOnDismiss by remember { mutableStateOf(false) }
     val title = item.detailTitle()
-    val typeLabel = when (item) {
-        is Schedule -> stringResource(R.string.detail_type_schedule)
-        is Task -> stringResource(R.string.detail_type_task)
+    val resources = LocalContext.current.resources
+    val typeLabel = when {
+        item is Schedule && item.isTongjiCourseSchedule() -> stringResource(R.string.type_course)
+        item is Schedule -> stringResource(R.string.detail_type_schedule)
+        item is Task && item.isTongjiCourseTask() -> stringResource(R.string.type_course)
+        item is Task && item.isTongjiExamTask() -> stringResource(R.string.type_exam)
+        item is Task -> stringResource(R.string.detail_type_task)
         else -> stringResource(R.string.detail_type_item)
     }
     val accentColor = item.detailColor()
-    val timeSummary = remember(item) { item.detailTimeSummary() }
+    val timeSummary = remember(item, resources.configuration) { item.detailTimeSummary(resources) }
     val description = item.detailDescription()
     val reminders = item.detailReminders()
     val density = LocalDensity.current
@@ -1064,14 +1103,14 @@ fun DetailPreview(
                     DetailSection(
                         title = stringResource(R.string.detail_details),
                         emptyText = stringResource(R.string.detail_no_details),
-                        rows = description.map { it.head to it.info }
+                        rows = description.map { it.localizedDetailRow(resources) }
                     )
 
                     DetailSection(
                         title = stringResource(R.string.detail_reminders),
                         emptyText = stringResource(R.string.detail_no_reminders),
                         rows = reminders.mapIndexed { index, reminder ->
-                            val reminderSummary = reminder.time.toDetailTaskTimeSummary()
+                            val reminderSummary = reminder.time.toDetailTaskTimeSummary(resources)
                             val status = if (reminder.enabled) stringResource(R.string.detail_enabled) else stringResource(R.string.detail_disabled)
                             val value = listOf(
                                 reminderSummary.primary,
@@ -1392,25 +1431,10 @@ private enum class DetailTimeLevel {
     Time
 }
 
-private val DetailMonthNames = arrayOf(
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-)
-
 private fun Any.detailTitle(): String = when (this) {
     is Schedule -> title
     is Task -> title
     else -> ""
-}
-
-private fun Any.detailTypeLabel(): String = when (this) {
-    is Schedule -> if (isTongjiCourseSchedule()) TongjiCourseType else "Schedule"
-    is Task -> when {
-        isTongjiCourseTask() -> TongjiCourseType
-        isTongjiExamTask() -> TongjiExamType
-        else -> "Task"
-    }
-    else -> "Item"
 }
 
 private fun Any.detailColor(): Color = when (this) {
@@ -1431,20 +1455,26 @@ private fun Any.detailReminders(): List<Reminder> = when (this) {
     else -> emptyList()
 }
 
-private fun Any.detailTimeSummary(now: LocalDateTime = LocalDateTime.now()): DetailTimeSummary =
+private fun Any.detailTimeSummary(
+    resources: Resources,
+    now: LocalDateTime = LocalDateTime.now()
+): DetailTimeSummary =
     when (this) {
-        is Schedule -> toDetailScheduleTimeSummary(now)
-        is Task -> deadline.toDetailTaskTimeSummary(now)
-        else -> DetailTimeSummary("Any time")
+        is Schedule -> toDetailScheduleTimeSummary(resources, now)
+        is Task -> deadline.toDetailTaskTimeSummary(resources, now)
+        else -> DetailTimeSummary(resources.getString(R.string.time_any_time))
     }
 
-private fun Schedule.toDetailScheduleTimeSummary(now: LocalDateTime): DetailTimeSummary {
+private fun Schedule.toDetailScheduleTimeSummary(
+    resources: Resources,
+    now: LocalDateTime
+): DetailTimeSummary {
     val level = detailRangeLevel(startTime, endTime, now)
-    val startDate = startTime.formatDetailDate(level)
-    val endDate = endTime.formatDetailDate(level)
-    val startClock = startTime.formatDetailClock()
-    val endClock = endTime.formatDetailClock()
-    val recurrence = sharedWildcardSummary(startTime, endTime)
+    val startDate = startTime.formatDetailDate(level, resources)
+    val endDate = endTime.formatDetailDate(level, resources)
+    val startClock = startTime.formatDetailClock(resources)
+    val endClock = endTime.formatDetailClock(resources)
+    val recurrence = sharedWildcardSummary(startTime, endTime, resources)
 
     return if (startDate.isNotBlank() && startDate == endDate) {
         DetailTimeSummary(
@@ -1462,19 +1492,20 @@ private fun Schedule.toDetailScheduleTimeSummary(now: LocalDateTime): DetailTime
 }
 
 private fun FlexibleDateTime.toDetailTaskTimeSummary(
+    resources: Resources,
     now: LocalDateTime = LocalDateTime.now()
 ): DetailTimeSummary {
     val level = detailPointLevel(this, now)
-    val date = formatDetailDate(level)
-    val clock = formatDetailClock()
+    val date = formatDetailDate(level, resources)
+    val clock = formatDetailClock(resources)
     val primary = listOf(date, clock)
         .filter { it.isNotBlank() }
         .joinToString(", ")
-        .ifBlank { "Any time" }
+        .ifBlank { resources.getString(R.string.time_any_time) }
 
     return DetailTimeSummary(
         primary = primary,
-        secondary = wildcardSummary()
+        secondary = wildcardSummary(resources)
     )
 }
 
@@ -1508,7 +1539,7 @@ private fun hasConcreteDifference(first: Int?, second: Int?, current: Int): Bool
     return concreteValues.any { it != current } || concreteValues.toSet().size > 1
 }
 
-private fun FlexibleDateTime.formatDetailDate(level: DetailTimeLevel): String {
+private fun FlexibleDateTime.formatDetailDate(level: DetailTimeLevel, resources: Resources): String {
     if (level == DetailTimeLevel.Time) return ""
 
     val parts = mutableListOf<String>()
@@ -1517,7 +1548,7 @@ private fun FlexibleDateTime.formatDetailDate(level: DetailTimeLevel): String {
     }
 
     if (month != null) {
-        parts += DetailMonthNames.getOrElse(month - 1) { month.toString() }
+        parts += resources.monthName(month)
     }
     if (day != null) {
         parts += day.toString()
@@ -1526,22 +1557,26 @@ private fun FlexibleDateTime.formatDetailDate(level: DetailTimeLevel): String {
     return parts.joinToString(" ")
 }
 
-private fun FlexibleDateTime.formatDetailClock(): String {
+private fun FlexibleDateTime.formatDetailClock(resources: Resources): String {
     return when {
         hour != null && minute != null ->
             "${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}"
-        hour != null -> "${hour.toString().padStart(2, '0')}:any minute"
-        minute != null -> "Every hour at :${minute.toString().padStart(2, '0')}"
-        else -> "Any time"
+        hour != null -> "${hour.toString().padStart(2, '0')}:${resources.getString(R.string.time_any_minute_suffix)}"
+        minute != null -> resources.getString(
+            R.string.time_every_hour_at,
+            minute.toString().padStart(2, '0')
+        )
+        else -> resources.getString(R.string.time_any_time)
     }
 }
 
 private fun sharedWildcardSummary(
     start: FlexibleDateTime,
-    end: FlexibleDateTime
+    end: FlexibleDateTime,
+    resources: Resources
 ): String {
-    val startSummary = start.wildcardSummary()
-    val endSummary = end.wildcardSummary()
+    val startSummary = start.wildcardSummary(resources)
+    val endSummary = end.wildcardSummary(resources)
     return if (startSummary == endSummary) {
         startSummary
     } else {
@@ -1551,25 +1586,112 @@ private fun sharedWildcardSummary(
     }
 }
 
-private fun FlexibleDateTime.wildcardSummary(): String {
+private fun FlexibleDateTime.wildcardSummary(resources: Resources): String {
     val dateScope = when {
-        year == null && month == null && day == null -> "Every day"
-        year == null && month != null && day != null -> "Every year"
-        year == null && month == null && day != null -> "Every month"
-        year == null && month != null && day == null -> "Every day in ${DetailMonthNames.getOrElse(month - 1) { month.toString() }}"
-        year != null && month == null && day == null -> "Every month in $year"
-        year != null && month != null && day == null -> "Every day in ${DetailMonthNames.getOrElse(month - 1) { month.toString() }} $year"
+        year == null && month == null && day == null -> resources.getString(R.string.time_every_day)
+        year == null && month != null && day != null -> resources.getString(R.string.time_every_year)
+        year == null && month == null && day != null -> resources.getString(R.string.time_every_month)
+        year == null && month != null && day == null -> resources.getString(
+            R.string.time_every_day_in_month,
+            resources.monthName(month)
+        )
+        year != null && month == null && day == null -> resources.getString(
+            R.string.time_every_month_in_year,
+            year
+        )
+        year != null && month != null && day == null -> resources.getString(
+            R.string.time_every_day_in_month_year,
+            resources.monthName(month),
+            year
+        )
         else -> ""
     }
 
     val timeScope = when {
-        hour == null && minute == null -> "Any time"
-        hour == null && minute != null -> "Every hour"
-        hour != null && minute == null -> "Every minute"
+        hour == null && minute == null -> resources.getString(R.string.time_any_time)
+        hour == null && minute != null -> resources.getString(R.string.time_every_hour)
+        hour != null && minute == null -> resources.getString(R.string.time_every_minute)
         else -> ""
     }
 
     return listOf(dateScope, timeScope)
         .filter { it.isNotBlank() }
         .joinToString(" / ")
+}
+
+private fun Resources.monthName(month: Int): String =
+    getStringArray(R.array.month_names_short).getOrElse(month - 1) { month.toString() }
+
+private fun DetailEntry.localizedDetailRow(resources: Resources): Pair<String, String> =
+    localizedDetailHead(head, resources) to localizedDetailValue(info, resources)
+
+private fun localizedDetailHead(head: String, resources: Resources): String =
+    when (head.trim()) {
+        "Teacher" -> resources.getString(R.string.detail_head_teacher)
+        "Room" -> resources.getString(R.string.detail_head_room)
+        "Note" -> resources.getString(R.string.detail_head_note)
+        "Chapter" -> resources.getString(R.string.detail_head_chapter)
+        "Problems" -> resources.getString(R.string.detail_head_problems)
+        "Subject" -> resources.getString(R.string.detail_head_subject)
+        "Format" -> resources.getString(R.string.detail_head_format)
+        "Topic" -> resources.getString(R.string.detail_head_topic)
+        "Duration" -> resources.getString(R.string.detail_head_duration)
+        "Course", "课程" -> resources.getString(R.string.detail_head_course)
+        "Source", "来源" -> resources.getString(R.string.detail_head_source)
+        "Type", "类型" -> resources.getString(R.string.detail_head_type)
+        "Description", "说明" -> resources.getString(R.string.detail_head_description)
+        "Due At", "到期时间" -> resources.getString(R.string.detail_head_due_time)
+        "Canvas Link", "Canvas 链接" -> resources.getString(R.string.detail_head_canvas_link)
+        "Time", "时间" -> resources.getString(R.string.detail_time)
+        "Week", "Weeks", "周次" -> resources.getString(R.string.detail_head_weeks)
+        "Weekday", "星期", "周几" -> resources.getString(R.string.detail_head_weekday)
+        "Sections", "节次" -> resources.getString(R.string.detail_head_sections)
+        "Location", "地点" -> resources.getString(R.string.detail_head_location)
+        "Assignment Details", "作业详情" -> resources.getString(R.string.detail_head_assignment_detail)
+        "Completion Status", "完成状态" -> resources.getString(R.string.detail_head_completion_status)
+        "Canvas Course ID" -> resources.getString(R.string.detail_head_canvas_course_id)
+        "Canvas Assignment ID" -> resources.getString(R.string.detail_head_canvas_assignment_id)
+        "Canvas Updated At" -> resources.getString(R.string.detail_head_canvas_updated_at)
+        "Imported At" -> resources.getString(R.string.detail_head_imported_at)
+        else -> head
+    }
+
+private fun localizedDetailValue(value: String, resources: Resources): String =
+    when (value.trim()) {
+        TongjiCourseType -> resources.getString(R.string.type_course)
+        TongjiExamType -> resources.getString(R.string.type_exam)
+        TongjiCourseSource -> resources.getString(R.string.detail_value_tongji_course_source)
+        TongjiExamSource -> resources.getString(R.string.detail_value_tongji_exam_source)
+        CanvasAssignmentType -> resources.getString(R.string.type_task)
+        CanvasAssignmentSource -> resources.getString(R.string.detail_value_canvas_source)
+        "Submitted", "已提交" -> resources.getString(R.string.detail_value_submitted)
+        "Incomplete", "未完成" -> resources.getString(R.string.detail_value_incomplete)
+        else -> localizedGeneratedDetailValue(value, resources) ?: value
+    }
+
+private fun localizedGeneratedDetailValue(value: String, resources: Resources): String? {
+    val trimmed = value.trim()
+
+    val week = trimmed.removePrefix("Week ").takeIf { it != trimmed && it.isNotBlank() }
+    if (week != null) {
+        return resources.getString(R.string.detail_week_value, week)
+    }
+
+    val section = trimmed.removePrefix("Section ").takeIf { it != trimmed && it.isNotBlank() }
+    if (section != null) {
+        return resources.getString(R.string.detail_section_value, section)
+    }
+
+    val weekdayIndex = when (trimmed) {
+        "Mon" -> 0
+        "Tue" -> 1
+        "Wed" -> 2
+        "Thu" -> 3
+        "Fri" -> 4
+        "Sat" -> 5
+        "Sun" -> 6
+        else -> null
+    }
+
+    return weekdayIndex?.let { resources.getStringArray(R.array.weekday_short).getOrNull(it) }
 }

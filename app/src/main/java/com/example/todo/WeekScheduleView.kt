@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -811,8 +812,11 @@ private fun Schedule.weekEndMinutesForDay(): Int {
     return if (end <= start) (start + 60).coerceAtMost(24 * 60) else end
 }
 
+@Composable
 private fun LocalDate.weekdayLabel(): String =
-    dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH).uppercase()
+    LocalContext.current.resources
+        .getStringArray(R.array.weekday_short)
+        .getOrElse(dayOfWeek.value - 1) { dayOfWeek.name }
 
 private fun LocalDate.weekStartDate(): LocalDate =
     with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))

@@ -24,12 +24,15 @@ class ReminderReceiver : BroadcastReceiver() {
             val body = intent.getStringExtra(PlannerReminderScheduler.ExtraBody).orEmpty()
 
             Log.d(TAG, "Reminder fired: id=$notificationId, title=$title")
+            val textContext = context
+                .applicationContext
+                .localizedContext(AppLanguageStore.load(context.applicationContext))
 
             ReminderNotification.show(
                 context = context.applicationContext,
                 notificationId = notificationId,
-                title = title.ifBlank { context.getString(R.string.notification_reminder_title) },
-                body = body.ifBlank { context.getString(R.string.notification_reminder_body) }
+                title = title.ifBlank { textContext.getString(R.string.notification_reminder_title) },
+                body = body.ifBlank { textContext.getString(R.string.notification_reminder_body) }
             )
 
             // Reschedule the next occurrence of this reminder

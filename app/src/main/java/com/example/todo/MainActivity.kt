@@ -15,7 +15,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import com.example.todo.ui.theme.TodoTheme
 
 class MainActivity : ComponentActivity() {
@@ -33,12 +40,33 @@ class MainActivity : ComponentActivity() {
             requestExactAlarmPermissionIfNeeded()
         }
         setContent {
+            var appLanguage by remember {
+                mutableStateOf(AppLanguageStore.load(applicationContext))
+            }
+            val localizedContext = remember(appLanguage) {
+                this.localizedContext(appLanguage)
+            }
+            val localizedConfiguration = remember(appLanguage) {
+                this.localizedConfiguration(appLanguage)
+            }
+
             TodoTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                CompositionLocalProvider(
+                    LocalContext provides localizedContext,
+                    LocalConfiguration provides localizedConfiguration
                 ) {
-                    DailyPlannerScreen()
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        DailyPlannerScreen(
+                            appLanguage = appLanguage,
+                            onLanguageSelected = { language ->
+                                appLanguage = language
+                                AppLanguageStore.save(applicationContext, language)
+                            }
+                        )
+                    }
                 }
             }
         }

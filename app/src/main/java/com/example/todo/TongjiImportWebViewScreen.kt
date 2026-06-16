@@ -51,6 +51,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -427,8 +428,8 @@ private fun CoursePreviewList(
 
 @Composable
 private fun CoursePreviewRow(course: TongjiCourse) {
-    val primaryLine = remember(course) { coursePreviewPrimaryLine(course) }
-    val detailLine = remember(course) { coursePreviewDetailLine(course) }
+    val primaryLine = localizedCoursePreviewPrimaryLine(course)
+    val detailLine = localizedCoursePreviewDetailLine(course)
 
     Column(
         modifier = Modifier
@@ -468,11 +469,28 @@ private fun CoursePreviewRow(course: TongjiCourse) {
     }
 }
 
-private val WeekdayNames = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-
+@Composable
 private fun courseWeekdayName(weekday: Int): String? =
-    WeekdayNames.getOrNull(weekday - 1)
+    LocalContext.current.resources.getStringArray(R.array.weekday_short).getOrNull(weekday - 1)
 
+@Composable
+private fun localizedCoursePreviewPrimaryLine(course: TongjiCourse): String =
+    listOfNotNull(
+        courseWeekdayName(course.weekday),
+        courseSectionLabel(course.startSection, course.endSection),
+        TongjiTimetableImporter.classClockRangeText(course)
+    ).joinToString(" / ")
+
+@Composable
+private fun localizedCoursePreviewDetailLine(course: TongjiCourse): String =
+    listOfNotNull(
+        course.teacher.takeIf { it.isNotBlank() }?.let { "${stringResource(R.string.detail_head_teacher)}: $it" },
+        course.room.takeIf { it.isNotBlank() }?.let { "${stringResource(R.string.detail_head_room)}: $it" },
+        course.weeks.takeIf { it.isNotEmpty() }?.let { weeksText(course) }
+            ?.let { stringResource(R.string.tongji_weeks_preview, it) }
+    ).joinToString(" / ")
+
+@Composable
 private fun coursePreviewPrimaryLine(course: TongjiCourse): String =
     listOfNotNull(
         courseWeekdayName(course.weekday),
@@ -480,16 +498,19 @@ private fun coursePreviewPrimaryLine(course: TongjiCourse): String =
         TongjiTimetableImporter.classClockRangeText(course)
     ).joinToString(" · ")
 
+@Composable
 private fun courseSectionLabel(startSection: Int, endSection: Int): String {
     val range = if (startSection == endSection) startSection.toString() else "$startSection-$endSection"
-    return if (startSection == endSection) "Section $range" else "Sections $range"
+    return "${stringResource(R.string.detail_head_sections)} $range"
 }
 
+@Composable
 private fun coursePreviewDetailLine(course: TongjiCourse): String =
     listOfNotNull(
-        course.teacher.takeIf { it.isNotBlank() }?.let { "Teacher: $it" },
-        course.room.takeIf { it.isNotBlank() }?.let { "Room: $it" },
-        course.weeks.takeIf { it.isNotEmpty() }?.let { weeksText(course) }?.let { "Weeks: $it" }
+        course.teacher.takeIf { it.isNotBlank() }?.let { "${stringResource(R.string.detail_head_teacher)}: $it" },
+        course.room.takeIf { it.isNotBlank() }?.let { "${stringResource(R.string.detail_head_room)}: $it" },
+        course.weeks.takeIf { it.isNotEmpty() }?.let { weeksText(course) }
+            ?.let { stringResource(R.string.tongji_weeks_preview, it) }
     ).joinToString(" · ")
 
 private fun weeksText(course: TongjiCourse): String {
@@ -511,7 +532,7 @@ private fun weeksText(course: TongjiCourse): String {
             if (range.first == range.last) range.first.toString() else "${range.first}-${range.last}"
         }
 
-    return "Week $ranges"
+    return ranges
 }
 
 @Composable

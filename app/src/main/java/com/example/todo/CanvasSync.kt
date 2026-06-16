@@ -24,7 +24,7 @@ data class CanvasSyncResult(
 }
 
 class CanvasSync(
-    context: Context,
+    private val context: Context,
     private val api: CanvasApi = CanvasApiClient(),
     private val localStore: CanvasSyncLocalStore = CanvasSyncLocalStore(context),
     private val persistence: PlannerPersistence = PlannerPersistence(context)
@@ -48,7 +48,7 @@ class CanvasSync(
             if (token.isNullOrBlank()) {
                 return CanvasSyncResult(
                     status = CanvasSyncStatus.MissingToken,
-                    message = "请先在设置中保存 Canvas API Token。"
+                    message = message(R.string.canvas_missing_token)
                 )
             }
 
@@ -79,7 +79,7 @@ class CanvasSync(
                     task.copy(isCompleted = existing.isCompleted || task.isCompleted)
                 }
             }
-            val nextStore = currentStore.upsertCanvasAssignmentTasks(mappedTasks)
+            val nextStore = currentStore.upsertCanvasAssignmentTasks(mergedTasks)
             val insertedCount = mappedTasks.count { existingTasks[it.id] == null }
             val updatedCount = mergedTasks.count { task ->
                 val existing = existingTasks[task.id]
@@ -90,7 +90,7 @@ class CanvasSync(
 
             CanvasSyncResult(
                 status = CanvasSyncStatus.Success,
-                message = "Canvas 同步完成。",
+                message = message(R.string.canvas_sync_complete, insertedCount, updatedCount, assignments.size),
                 totalAssignments = assignments.size,
                 insertedCount = insertedCount,
                 updatedCount = updatedCount,
@@ -101,23 +101,26 @@ class CanvasSync(
         } catch (exception: CanvasApiException.Unauthorized) {
             CanvasSyncResult(
                 status = CanvasSyncStatus.AuthorizationFailed,
-                message = exception.message ?: "Canvas Token 无效或已过期。"
+                message = message(R.string.canvas_token_invalid)
             )
         } catch (exception: CanvasApiException.Network) {
             CanvasSyncResult(
                 status = CanvasSyncStatus.NetworkFailed,
-                message = exception.message ?: "网络异常，无法同步 Canvas。"
+                message = message(R.string.canvas_network_failed)
             )
         } catch (exception: CanvasApiException) {
             CanvasSyncResult(
                 status = CanvasSyncStatus.Failed,
-                message = exception.message ?: "Canvas 同步失败。"
+                message = message(R.string.canvas_sync_failed)
             )
         } catch (exception: Exception) {
             CanvasSyncResult(
                 status = CanvasSyncStatus.Failed,
-                message = exception.message ?: "Canvas 同步失败。"
+                message = exception.message ?: message(R.string.canvas_sync_failed)
             )
         }
     }
+
+    private fun message(id: Int, vararg args: Any): String =
+        context.localizedContext(AppLanguageStore.load(context)).resources.getString(id, *args)
 }

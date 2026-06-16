@@ -1,0 +1,253 @@
+<resources>
+    <!-- App -->
+    <string name="app_name">Todo</string>
+
+    <!-- Main screen -->
+    <string name="schedule_section">Schedule</string>
+    <string name="task_section">Recommended Tasks</string>
+    <string name="all_dates">ALL DATES</string>
+    <string name="add_item">Add item</string>
+
+    <!-- Create item screen -->
+    <string name="create_schedule">Create Schedule</string>
+    <string name="create_task">Create Task</string>
+    <string name="new_schedule">New Schedule</string>
+    <string name="new_task">New Task</string>
+    <string name="label_title">Title</string>
+    <string name="hint_schedule_title">Schedule title</string>
+    <string name="hint_task_title">Task title</string>
+    <string name="label_time">Time</string>
+    <string name="label_start">Start</string>
+    <string name="label_start_time">Start Time</string>
+    <string name="label_end">End</string>
+    <string name="label_end_time">End Time</string>
+    <string name="label_deadline">Deadline</string>
+    <string name="label_accent">Accent</string>
+    <string name="label_estimated_effort">Estimated Effort</string>
+    <string name="label_details">Details</string>
+    <string name="action_new">New</string>
+    <string name="empty_no_detail_fields">No detail fields</string>
+    <string name="label_reminders">Reminders</string>
+    <string name="empty_no_reminders">No reminders</string>
+    <string name="reminder_label">Reminder %1$d</string>
+    <string name="cd_close">Close</string>
+    <string name="cd_save">Save</string>
+    <string name="type_schedule">Schedule</string>
+    <string name="type_task">Task</string>
+    <string name="type_course">Course</string>
+    <string name="type_exam">Exam</string>
+    <string name="detail_field">Field</string>
+    <string name="cd_remove_detail">Remove detail</string>
+    <string name="hint_head">Head</string>
+    <string name="hint_info">Info</string>
+    <string name="cd_remove_reminder">Remove reminder</string>
+    <string name="cd_done">Done</string>
+    <string name="label_any">Any</string>
+
+    <!-- Time field labels -->
+    <string name="time_year">Year</string>
+    <string name="time_month">Month</string>
+    <string name="time_day">Day</string>
+    <string name="time_hour">Hour</string>
+    <string name="time_minute">Minute</string>
+    <string name="time_every_year">Every year</string>
+    <string name="time_every_month">Every month</string>
+    <string name="time_every_day">Every day</string>
+    <string name="time_every_hour">Every hour</string>
+    <string name="time_every_minute">Every minute</string>
+    <string name="time_any_year">Any year</string>
+    <string name="time_any_month">Any month</string>
+    <string name="time_any_day">Any day</string>
+    <string name="time_any_hour">Any hour</string>
+    <string name="time_any_minute">Any minute</string>
+    <string name="time_any_time">Any time</string>
+    <string name="time_any_minute_suffix">any minute</string>
+    <string name="time_every_hour_at">Every hour at :%1$s</string>
+    <string name="time_every_day_in_month">Every day in %1$s</string>
+    <string name="time_every_month_in_year">Every month in %1$d</string>
+    <string name="time_every_day_in_month_year">Every day in %1$s %2$d</string>
+
+    <!-- Detail card (Components.kt) -->
+    <string name="detail_deadline">Deadline</string>
+    <string name="detail_time">Time</string>
+    <string name="detail_details">Details</string>
+    <string name="detail_no_details">No details</string>
+    <string name="detail_reminders">Reminders</string>
+    <string name="detail_no_reminders">No reminders</string>
+    <string name="detail_enabled">Enabled</string>
+    <string name="detail_disabled">Disabled</string>
+    <string name="detail_delete">Delete</string>
+    <string name="detail_type_schedule">Schedule</string>
+    <string name="detail_type_task">Task</string>
+    <string name="detail_type_item">Item</string>
+    <string name="detail_head_teacher">Teacher</string>
+    <string name="detail_head_room">Room</string>
+    <string name="detail_head_note">Note</string>
+    <string name="detail_head_chapter">Chapter</string>
+    <string name="detail_head_problems">Problems</string>
+    <string name="detail_head_subject">Subject</string>
+    <string name="detail_head_format">Format</string>
+    <string name="detail_head_topic">Topic</string>
+    <string name="detail_head_duration">Duration</string>
+    <string name="detail_head_course">Course</string>
+    <string name="detail_head_source">Source</string>
+    <string name="detail_head_type">Type</string>
+    <string name="detail_head_description">Description</string>
+    <string name="detail_head_due_time">Due Time</string>
+    <string name="detail_head_canvas_link">Canvas Link</string>
+    <string name="detail_head_sections">Sections</string>
+    <string name="detail_head_weeks">Weeks</string>
+    <string name="detail_head_weekday">Weekday</string>
+    <string name="detail_head_location">Location</string>
+    <string name="detail_head_assignment_detail">Assignment Details</string>
+    <string name="detail_head_completion_status">Completion Status</string>
+    <string name="detail_head_canvas_course_id">Canvas Course ID</string>
+    <string name="detail_head_canvas_assignment_id">Canvas Assignment ID</string>
+    <string name="detail_head_canvas_updated_at">Canvas Updated At</string>
+    <string name="detail_head_imported_at">Imported At</string>
+    <string name="detail_week_value">Week %1$s</string>
+    <string name="detail_section_value">Section %1$s</string>
+    <string name="detail_value_submitted">Submitted</string>
+    <string name="detail_value_incomplete">Incomplete</string>
+    <string name="detail_value_canvas_source">From Canvas course assignments</string>
+    <string name="detail_value_tongji_course_source">Tongji graduate timetable</string>
+    <string name="detail_value_tongji_exam_source">Tongji exam enquiries</string>
+
+    <!-- Schedule view -->
+    <string name="period_day">Day</string>
+    <string name="period_week">Week</string>
+    <string name="period_month">Month</string>
+    <string name="select_date">Select date</string>
+    <string name="label_select_date">Select Date</string>
+
+    <!-- Task list -->
+    <string name="task_list_title">Tasks</string>
+    <string name="empty_no_active_tasks">No active tasks</string>
+    <string name="empty_no_completed_tasks">No completed tasks</string>
+    <string name="cd_create_task">Create task</string>
+    <string name="label_completed">Completed</string>
+    <string name="task_view_list">List</string>
+    <string name="task_view_calendar">Calendar</string>
+    <string name="previous_month">Previous month</string>
+    <string name="next_month">Next month</string>
+    <string name="task_count_one">1 task</string>
+    <string name="task_count_many">%1$d tasks</string>
+    <string name="empty_no_tasks_on_date">No tasks on this date</string>
+    <string name="label_active">Active</string>
+
+    <!-- More indicator -->
+    <string name="more_count">+%1$d</string>
+
+    <!-- Home FAB quick actions -->
+    <string name="home_menu_language">Language</string>
+    <string name="home_menu_timetable">Timetable</string>
+    <string name="home_menu_exams">Exams</string>
+    <string name="home_menu_canvas">Canvas</string>
+
+    <!-- Canvas sync -->
+    <string name="canvas_sync_title">Canvas Sync</string>
+    <string name="canvas_overlay_subtitle">TOKEN AND ASSIGNMENTS</string>
+    <string name="canvas_status_token_saved">TOKEN SAVED</string>
+    <string name="canvas_status_token_required">TOKEN REQUIRED</string>
+    <string name="canvas_update_token">Update Canvas API Token</string>
+    <string name="canvas_token_label">Canvas API Token</string>
+    <string name="canvas_save_new_token">Save New Token</string>
+    <string name="canvas_save_token">Save Token</string>
+    <string name="canvas_token_saved">Token saved.</string>
+    <string name="canvas_save_token_failed">Failed to save token.</string>
+    <string name="canvas_open_token_page">Open Canvas token page</string>
+    <string name="canvas_last_sync">Last Sync</string>
+    <string name="canvas_never">Never</string>
+    <string name="canvas_syncing">Syncing</string>
+    <string name="canvas_sync_now">Sync Now</string>
+    <string name="canvas_syncing_assignments">Syncing Canvas assignments...</string>
+    <string name="canvas_sync_complete">Sync complete: %1$d new, %2$d updated, %3$d total.</string>
+    <string name="canvas_sync_error">Canvas sync error. Check token and network.</string>
+    <string name="canvas_clear_token">Clear Canvas Token</string>
+    <string name="canvas_token_cleared">Token cleared.</string>
+    <string name="canvas_paste_token">Paste token</string>
+    <string name="canvas_dismiss">Dismiss</string>
+    <string name="canvas_status_synced">SYNCED</string>
+    <string name="canvas_status_ready">READY</string>
+    <string name="canvas_missing_token">Save a Canvas API Token first.</string>
+    <string name="canvas_token_invalid">Canvas Token is invalid or expired.</string>
+    <string name="canvas_network_failed">Network error. Canvas cannot sync.</string>
+    <string name="canvas_sync_failed">Canvas sync failed.</string>
+    <string name="canvas_request_unauthorized">Canvas Token is invalid or expired. Generate a new Token.</string>
+    <string name="canvas_request_not_found">The Canvas endpoint does not exist or the current Token cannot access it.</string>
+    <string name="canvas_request_network">Network error. Cannot connect to Canvas.</string>
+    <string name="canvas_request_parse">Failed to parse Canvas response data.</string>
+    <string name="canvas_request_failed_http">Canvas request failed: HTTP %1$d</string>
+    <string name="canvas_token_empty">Canvas Token cannot be empty.</string>
+
+    <!-- Month names (arrays) -->
+    <string-array name="month_names">
+        <item>January</item><item>February</item><item>March</item><item>April</item>
+        <item>May</item><item>June</item><item>July</item><item>August</item>
+        <item>September</item><item>October</item><item>November</item><item>December</item>
+    </string-array>
+    <string-array name="month_names_short">
+        <item>Jan</item><item>Feb</item><item>Mar</item><item>Apr</item>
+        <item>May</item><item>Jun</item><item>Jul</item><item>Aug</item>
+        <item>Sep</item><item>Oct</item><item>Nov</item><item>Dec</item>
+    </string-array>
+
+    <!-- Weekday names (arrays) -->
+    <string-array name="weekday_short">
+        <item>MON</item><item>TUE</item><item>WED</item><item>THU</item>
+        <item>FRI</item><item>SAT</item><item>SUN</item>
+    </string-array>
+
+    <!-- Notification -->
+    <string name="notification_channel_name">Reminders</string>
+    <string name="notification_channel_desc">Task and schedule reminder notifications</string>
+    <string name="notification_reminder_title">Reminder</string>
+    <string name="notification_reminder_body">A reminder is due.</string>
+    <string name="notification_schedule_reminder">Schedule reminder</string>
+    <string name="notification_task_reminder">Task reminder</string>
+    <string name="notification_body_template">%1$s at %2$s</string>
+
+    <!-- Tongji timetable import -->
+    <string name="tongji_import_screen_title">Tongji Timetable Import</string>
+    <string name="tongji_open_page">Opening Tongji timetable page</string>
+    <string name="tongji_parsing">Parsing timetable...</string>
+    <string name="tongji_waiting">Waiting for timetable data</string>
+    <string name="tongji_empty_course_error">No courses with name, weekday, and sections were detected. Make sure you are on the graduate timetable page and try again.</string>
+    <string name="tongji_invalid_course_error">Courses were detected but valid weeks, weekdays, or sections are missing, so schedules could not be created.</string>
+    <string name="tongji_parse_failed_error">Failed to parse timetable. Refresh the page and try again.</string>
+    <string name="tongji_import_complete">Import complete</string>
+    <string name="tongji_reload_page">Reload timetable page</string>
+    <string name="tongji_login_then_import">After logging in, tap the import button at the bottom right</string>
+    <string name="tongji_local_only">Page data is parsed only on this device</string>
+    <string name="tongji_refresh">Refresh</string>
+    <string name="tongji_confirm_semester_start">Confirm Monday of Week 1</string>
+    <string name="tongji_cancel">Cancel</string>
+    <string name="tongji_import_action">Import</string>
+    <string name="tongji_previous_day">Previous day</string>
+    <string name="tongji_next_day">Next day</string>
+    <string name="tongji_done">Done</string>
+    <string name="tongji_cannot_import">Cannot import yet</string>
+    <string name="tongji_got_it">Got it</string>
+    <string name="tongji_import_button_text">Import Timetable</string>
+    <string name="tongji_import_button_cd">Import Tongji timetable</string>
+    <string name="tongji_recognized_courses">%1$d courses detected</string>
+    <string name="tongji_recognized_courses_need_start">%1$d courses detected. Confirm Monday of Week 1 before importing.</string>
+    <string name="tongji_saved_course_schedules">%1$d course schedules saved</string>
+    <string name="tongji_weeks_preview">Weeks: %1$s</string>
+
+    <!-- Tongji exam import -->
+    <string name="tongji_exam_import_screen_title">Tongji Exams Import</string>
+    <string name="tongji_exam_open_page">Opening Tongji exams page</string>
+    <string name="tongji_exam_parsing">Parsing exams...</string>
+    <string name="tongji_exam_waiting">Waiting for exam data</string>
+    <string name="tongji_exam_empty_error">No exams with course name and start time were detected. Make sure you are on the student exam enquiries page and try again.</string>
+    <string name="tongji_exam_invalid_error">Exams were detected but valid start times are missing, so tasks could not be created.</string>
+    <string name="tongji_exam_parse_failed_error">Failed to parse exams. Refresh the page and try again.</string>
+    <string name="tongji_exam_import_complete">Exam import complete</string>
+    <string name="tongji_exam_reload_page">Reload exams page</string>
+    <string name="tongji_exam_login_then_import">After logging in, tap Import Exams at the bottom right</string>
+    <string name="tongji_exam_local_only">Exam data is parsed only on this device</string>
+    <string name="tongji_exam_refresh">Refresh</string>
+    <string name="tongji_exam_import_button_text">Import Exams</string>
+    <string name="tongji_exam_saved_tasks">%1$d exam tasks saved</string>
+</resources>

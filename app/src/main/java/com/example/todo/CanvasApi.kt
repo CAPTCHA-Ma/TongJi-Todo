@@ -25,11 +25,11 @@ data class CanvasAssignment(
 )
 
 sealed class CanvasApiException(message: String, cause: Throwable? = null) : Exception(message, cause) {
-    class Unauthorized : CanvasApiException("Canvas Token 无效或已过期，请重新生成 Token。")
-    class NotFound : CanvasApiException("Canvas 接口不存在或当前 Token 无权访问该资源。")
+    class Unauthorized : CanvasApiException("Canvas token is invalid or expired.")
+    class NotFound : CanvasApiException("Canvas endpoint not found or token cannot access it.")
     class Server(message: String) : CanvasApiException(message)
-    class Network(cause: Throwable) : CanvasApiException("网络异常，无法连接 Canvas。", cause)
-    class Parse(cause: Throwable) : CanvasApiException("Canvas 返回数据解析失败。", cause)
+    class Network(cause: Throwable) : CanvasApiException("Network error. Cannot connect to Canvas.", cause)
+    class Parse(cause: Throwable) : CanvasApiException("Failed to parse Canvas response data.", cause)
 }
 
 interface CanvasApi {
@@ -37,19 +37,6 @@ interface CanvasApi {
     fun fetchAssignments(token: String, course: CanvasCourse): List<CanvasAssignment>
 }
 
-/**
- * Thin Canvas LMS REST client.
- *
- * Core Canvas endpoints used by this app:
- * - GET /api/v1/courses
- *   Lists courses visible to the current token.
- * - GET /api/v1/courses/{course_id}/assignments
- *   Lists assignments for one course. The request includes submission state
- *   so submitted or graded assignments can be marked completed locally.
- *
- * All requests authenticate with:
- * Authorization: Bearer {Canvas API Token}
- */
 class CanvasApiClient(
     private val baseUrl: String = CanvasBaseUrl
 ) : CanvasApi {
@@ -137,7 +124,7 @@ class CanvasApiClient(
                 )
                 401, 403 -> throw CanvasApiException.Unauthorized()
                 404 -> throw CanvasApiException.NotFound()
-                else -> throw CanvasApiException.Server("Canvas 请求失败：HTTP $code")
+                else -> throw CanvasApiException.Server("Canvas request failed: HTTP $code")
             }
         } catch (exception: CanvasApiException) {
             throw exception
@@ -178,13 +165,9 @@ class CanvasApiClient(
         optCleanString("id") ?: if (has("id")) optLong("id").toString() else null
 
     private fun JSONObject.optCleanString(name: String): String? =
-        if (!has(name) || isNull(name)) {
-            null
-        } else {
-            optString(name)
-                .trim()
-                .takeIf { it.isNotBlank() && it != "null" }
-        }
+        optString(name, "")
+            .trim()
+            .takeIf { it.isNotBlank() && it != "null" }
 }
 
 private data class CanvasPage(

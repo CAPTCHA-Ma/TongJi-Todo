@@ -46,6 +46,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -60,6 +61,7 @@ fun CanvasSyncSettingsPanel(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current.applicationContext
+    val resources = LocalContext.current.resources
     val localStore = remember(context) { CanvasSyncLocalStore(context) }
     val scope = rememberCoroutineScope()
     var tokenInput by remember { mutableStateOf("") }
@@ -98,7 +100,7 @@ fun CanvasSyncSettingsPanel(
         CanvasTokenField(
             value = tokenInput,
             onValueChange = { tokenInput = it },
-            label = if (hasToken) "Update Canvas API Token" else "Canvas API Token"
+            label = if (hasToken) stringResource(R.string.canvas_update_token) else stringResource(R.string.canvas_token_label)
         )
 
         Row(
@@ -107,7 +109,7 @@ fun CanvasSyncSettingsPanel(
             modifier = Modifier.fillMaxWidth()
         ) {
             CanvasPanelButton(
-                text = if (hasToken) "Save New Token" else "Save Token",
+                text = if (hasToken) stringResource(R.string.canvas_save_new_token) else stringResource(R.string.canvas_save_token),
                 icon = Icons.Filled.Key,
                 onClick = {
                     scope.launch {
@@ -118,11 +120,11 @@ fun CanvasSyncSettingsPanel(
                         }.onSuccess {
                             tokenInput = ""
                             hasToken = true
-                            statusMessage = "Token saved."
+                            statusMessage = resources.getString(R.string.canvas_token_saved)
                             runCatching { CanvasSyncScheduler.schedule(context) }
                                 .onFailure { Log.e(CanvasSyncSettingsLogTag, "Failed to schedule after token save", it) }
                         }.onFailure { error ->
-                            errorMessage = error.message ?: "Failed to save token."
+                            errorMessage = error.message ?: resources.getString(R.string.canvas_save_token_failed)
                         }
                     }
                 },
@@ -133,15 +135,15 @@ fun CanvasSyncSettingsPanel(
 
             CanvasIconActionButton(
                 icon = Icons.AutoMirrored.Filled.OpenInNew,
-                contentDescription = "Open Canvas token page",
+                contentDescription = stringResource(R.string.canvas_open_token_page),
                 onClick = { context.openCanvasTokenPage() },
                 enabled = !isSyncing
             )
         }
 
         CanvasSyncInfoRow(
-            label = "Last Sync",
-            value = lastSyncMillis?.formatSyncTime() ?: "Never"
+            label = stringResource(R.string.canvas_last_sync),
+            value = lastSyncMillis?.formatSyncTime() ?: stringResource(R.string.canvas_never)
         )
 
         Row(
@@ -150,11 +152,11 @@ fun CanvasSyncSettingsPanel(
             modifier = Modifier.fillMaxWidth()
         ) {
             CanvasPanelButton(
-                text = if (isSyncing) "Syncing" else "Sync Now",
+                text = if (isSyncing) stringResource(R.string.canvas_syncing) else stringResource(R.string.canvas_sync_now),
                 icon = Icons.Filled.Sync,
                 onClick = {
                     isSyncing = true
-                    statusMessage = "Syncing Canvas assignments..."
+                    statusMessage = resources.getString(R.string.canvas_syncing_assignments)
                     scope.launch {
                         runCatching {
                             withContext(Dispatchers.IO) {
@@ -165,7 +167,12 @@ fun CanvasSyncSettingsPanel(
                             if (result.isSuccess) {
                                 result.nextStore?.let(onSyncCompleted)
                                 lastSyncMillis = result.syncedAtMillis ?: localStore.loadLastSyncTimeMillis()
-                                statusMessage = "Sync complete: ${result.insertedCount} new, ${result.updatedCount} updated, ${result.totalAssignments} total."
+                                statusMessage = resources.getString(
+                                    R.string.canvas_sync_complete,
+                                    result.insertedCount,
+                                    result.updatedCount,
+                                    result.totalAssignments
+                                )
                                 runCatching { CanvasSyncScheduler.schedule(context) }
                                     .onFailure { Log.e(CanvasSyncSettingsLogTag, "Failed to schedule Canvas sync", it) }
                             } else {
@@ -175,7 +182,7 @@ fun CanvasSyncSettingsPanel(
                         }.onFailure { error ->
                             isSyncing = false
                             Log.e(CanvasSyncSettingsLogTag, "Manual Canvas sync crashed", error)
-                            errorMessage = error.message ?: "Canvas sync error. Check token and network."
+                            errorMessage = error.message ?: resources.getString(R.string.canvas_sync_error)
                             statusMessage = null
                         }
                     }
@@ -188,13 +195,13 @@ fun CanvasSyncSettingsPanel(
 
             CanvasIconActionButton(
                 icon = Icons.Filled.Delete,
-                contentDescription = "Clear Canvas Token",
+                contentDescription = stringResource(R.string.canvas_clear_token),
                 onClick = {
                     localStore.clearToken()
                     CanvasSyncScheduler.cancel(context)
                     hasToken = false
                     tokenInput = ""
-                    statusMessage = "Token cleared."
+                    statusMessage = resources.getString(R.string.canvas_token_cleared)
                 },
                 enabled = hasToken && !isSyncing
             )
@@ -224,7 +231,7 @@ private fun CanvasPanelHeader(hasToken: Boolean) {
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Canvas Sync",
+                text = stringResource(R.string.canvas_sync_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Black,
                 color = Color.Black,
@@ -232,7 +239,7 @@ private fun CanvasPanelHeader(hasToken: Boolean) {
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = if (hasToken) "TOKEN SAVED" else "TOKEN REQUIRED",
+                text = if (hasToken) stringResource(R.string.canvas_status_token_saved) else stringResource(R.string.canvas_status_token_required),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Black,
                 color = Color.Black.copy(alpha = 0.48f),
@@ -284,7 +291,7 @@ private fun CanvasMessageCard(
         ) {
             Icon(
                 imageVector = Icons.Filled.Close,
-                contentDescription = "Dismiss",
+                contentDescription = stringResource(R.string.canvas_dismiss),
                 tint = Color.Black.copy(alpha = 0.54f),
                 modifier = Modifier.size(18.dp)
             )
@@ -343,7 +350,7 @@ private fun CanvasTokenField(
                 ) {
                     if (value.isBlank()) {
                         Text(
-                            text = "Paste token",
+                            text = stringResource(R.string.canvas_paste_token),
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color.Black.copy(alpha = 0.28f),
                             maxLines = 1,

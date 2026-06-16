@@ -15,12 +15,13 @@ object ReminderNotification {
 
     fun ensureChannel(context: Context) {
         val notificationManager = context.getSystemService(NotificationManager::class.java) ?: return
+        val textContext = context.localizedContext(AppLanguageStore.load(context))
         val channel = NotificationChannel(
             ChannelId,
-            context.getString(R.string.notification_channel_name),
+            textContext.getString(R.string.notification_channel_name),
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = context.getString(R.string.notification_channel_desc)
+            description = textContext.getString(R.string.notification_channel_desc)
             enableVibration(true)
         }
         notificationManager.createNotificationChannel(channel)
